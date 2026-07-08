@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useProject, useDeleteProject, useUpdateProject } from '../hooks/useProjects';
 import { useExpensesForProject } from '../hooks/useExpenses';
 import { useCategories } from '../hooks/useCategories';
+import { usePayItemsForProject } from '../hooks/useTeam';
+import { PayItemsCard } from '../components/team/PayItemsCard';
 import { useAuth } from '../providers/AuthProvider';
 import { formatMoney, sumMoney } from '../lib/money';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -23,10 +25,11 @@ const STATUS_COLORS: Record<ProjectStatus, string> = {
 export function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { canEdit } = useAuth();
+  const { canEdit, isAdmin } = useAuth();
   const toast = useToast();
   const project = useProject(projectId);
   const expenses = useExpensesForProject(projectId);
+  const payItems = usePayItemsForProject(projectId);
   const categories = useCategories();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -59,6 +62,17 @@ export function ProjectPage() {
     () => sumMoney((expenses.data ?? []).map((e) => e.amount)),
     [expenses.data],
   );
+
+  // Approved team pay posts to the ledger, not to expenses (Phase 0.5);
+  // it still counts as project spend here. Drafts are excluded everywhere.
+  const approvedPay = useMemo(
+    () =>
+      sumMoney(
+        (payItems.data ?? []).filter((i) => i.status === 'approved').map((i) => i.amount),
+      ),
+    [payItems.data],
+  );
+  const totalOut = total + approvedPay;
 
   if (project.isLoading) return <p className="text-sm text-slate-500">Loading…</p>;
   if (!project.data) return <p className="text-sm text-slate-500">Project not found.</p>;
@@ -151,20 +165,22 @@ export function ProjectPage() {
         )}
       </header>
 
-      {/* Project P&L: Paid (from client) - Spent (from expenses) = Profit */}
+      {/* Project P&L: Paid (from client) - Spent (expenses + approved team pay) = Profit */}
       <div className="card sticky top-0 z-10 grid grid-cols-3 divide-x divide-slate-100">
         <PnLCell label="Client paid" value={formatMoney(p.client_paid ?? '0')} tone="paid" />
         <PnLCell
           label={`Spent (${expenses.data?.length ?? 0})`}
-          value={formatMoney(total)}
+          value={formatMoney(totalOut)}
           tone="spent"
         />
         <PnLCell
           label="Profit"
-          value={formatMoney(Number(p.client_paid ?? 0) - total)}
-          tone={Number(p.client_paid ?? 0) - total >= 0 ? 'profit' : 'loss'}
+          value={formatMoney(Number(p.client_paid ?? 0) - totalOut)}
+          tone={Number(p.client_paid ?? 0) - totalOut >= 0 ? 'profit' : 'loss'}
         />
       </div>
+
+      {projectId && <PayItemsCard projectId={projectId} canEdit={canEdit} isAdmin={isAdmin} />}
 
       {p.collection_details && (
         <details className="card open:shadow-sm" open={false}>

@@ -4,7 +4,79 @@
 export type Role = 'admin' | 'editor' | 'viewer';
 export type ProjectStatus = 'planning' | 'active' | 'completed' | 'archived';
 export type AuditAction = 'create' | 'update' | 'delete';
-export type AuditEntity = 'year' | 'project' | 'expense' | 'category' | 'member' | 'profile';
+export type AuditEntity =
+  | 'year'
+  | 'project'
+  | 'expense'
+  | 'category'
+  | 'member'
+  | 'profile'
+  | 'organization'
+  | 'team_member'
+  | 'pay_item'
+  | 'account'
+  | 'journal_entry'
+  | 'member_rate';
+
+// --- Multi-tenancy (Phase 0.5) ---
+export type OrgRole = 'owner' | 'admin' | 'member' | 'contractor' | 'viewer';
+export type PayType = 'flat' | 'hourly' | 'none';
+export type PayItemStatus = 'draft' | 'approved' | 'void';
+
+export interface Organization {
+  id: string;
+  name: string;
+  settings: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgMember {
+  org_id: string;
+  user_id: string;
+  role: OrgRole;
+  created_at: string;
+}
+
+export interface TeamMember {
+  id: string;
+  org_id: string;
+  display_name: string;
+  email: string | null;
+  profile_id: string | null;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PayItem {
+  id: string;
+  org_id: string;
+  project_id: string;
+  project_member_id: string | null;
+  team_member_id: string;
+  description: string;
+  amount: string; // numeric(14,2)
+  pay_date: string;
+  status: PayItemStatus;
+  journal_entry_id: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MemberRate {
+  id: string;
+  org_id: string;
+  team_member_id: string;
+  cost_rate: string | null;
+  bill_rate: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 // --- Bookkeeping (M12) ---
 export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense' | 'cogs';
@@ -17,7 +89,8 @@ export type JournalSourceType =
   | 'bill'
   | 'payment'
   | 'adjustment'
-  | 'reversal';
+  | 'reversal'
+  | 'pay_item';
 
 export interface Profile {
   id: string;
@@ -25,11 +98,13 @@ export interface Profile {
   full_name: string | null;
   role: Role;
   is_active: boolean;
+  default_org_id?: string | null;
   created_at: string;
 }
 
 export interface Year {
   id: string;
+  org_id?: string; // present on all rows since 0011; optional for stale local-mirror rows
   year_value: number;
   label: string | null;
   created_by: string | null;
@@ -38,6 +113,7 @@ export interface Year {
 
 export interface Project {
   id: string;
+  org_id?: string; // present on all rows since 0011; optional for stale local-mirror rows
   year_id: string;
   name: string;
   description: string | null;
@@ -56,6 +132,7 @@ export interface Project {
 
 export interface Category {
   id: string;
+  org_id?: string; // present on all rows since 0011; optional for stale local-mirror rows
   name: string;
   description: string | null;
   color: string;
@@ -66,6 +143,7 @@ export interface Category {
 
 export interface Account {
   id: string;
+  org_id?: string; // present on all rows since 0011; optional for stale local-mirror rows
   code: string;
   name: string;
   type: AccountType;
@@ -80,6 +158,7 @@ export interface Account {
 
 export interface AccountingPeriod {
   id: string;
+  org_id?: string; // present on all rows since 0011; optional for stale local-mirror rows
   name: string;
   start_date: string;
   end_date: string;
@@ -91,6 +170,7 @@ export interface AccountingPeriod {
 
 export interface JournalEntry {
   id: string;
+  org_id?: string; // present on all rows since 0011; optional for stale local-mirror rows
   entry_date: string;
   reference: string | null;
   memo: string | null;
@@ -107,6 +187,7 @@ export interface JournalEntry {
 
 export interface JournalLine {
   id: string;
+  org_id?: string; // present on all rows since 0011; optional for stale local-mirror rows
   journal_entry_id: string;
   account_id: string;
   description: string | null;
@@ -167,6 +248,7 @@ export interface ProjectPnLRow {
 
 export interface Expense {
   id: string;
+  org_id?: string; // present on all rows since 0011; optional for stale local-mirror rows
   project_id: string;
   category_id: string;
   description: string;
@@ -184,14 +266,23 @@ export interface Expense {
   updated_at: string;
 }
 
+// Staffing shape since migration 0013 (was an unused user/permission ACL).
 export interface ProjectMember {
+  id: string;
+  org_id: string;
   project_id: string;
-  user_id: string;
-  permission: 'edit' | 'view';
+  team_member_id: string;
+  role_label: string;
+  pay_type: PayType;
+  agreed_pay: string | null;
+  permission: 'edit' | 'view' | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AuditLog {
   id: string;
+  org_id?: string; // present on all rows since 0011; optional for stale local-mirror rows
   user_id: string | null;
   action: AuditAction;
   entity_type: AuditEntity;

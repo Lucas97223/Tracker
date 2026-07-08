@@ -18,6 +18,7 @@ import { useYears } from '../hooks/useYears';
 import { useProjects } from '../hooks/useProjects';
 import { useCategories } from '../hooks/useCategories';
 import { useFilteredExpenses, emptyFilters, type DashboardFilters } from '../hooks/useDashboard';
+import { useApprovedPay } from '../hooks/useTeam';
 import { formatMoney, formatMoneyCompact, sumMoney } from '../lib/money';
 import { exportToCsv } from '../lib/csv';
 import { useToast } from '../providers/ToastProvider';
@@ -52,6 +53,7 @@ export function DashboardPage() {
   const projects = useProjects();
   const categories = useCategories();
   const expensesQuery = useFilteredExpenses(filters);
+  const approvedPayQuery = useApprovedPay();
   const toast = useToast();
 
   const projectMap = useMemo(
@@ -208,22 +210,50 @@ export function DashboardPage() {
   }, [rows]);
 
   // Per-photographer: sum of expenses *attributed* to each person via
-  // expense.person_name. Rows with no person_name are excluded.
-  // (Auto-populated by the project photographers list landing in Photographer Pay.)
+  // expense.person_name (legacy pay rows live in expenses), PLUS approved pay
+  // items (the Phase 0.5 flow, which posts to the ledger instead of expenses).
+  // Drafts never count. Pay items pass the same project-level filters as
+  // expense rows so this widget stays consistent with the page's filter bar.
   const byPhotographer: Bucket[] = useMemo(() => {
     const map = new Map<string, { total: number; count: number }>();
+    const bump = (name: string, amount: number) => {
+      const cur = map.get(name) ?? { total: 0, count: 0 };
+      cur.total += amount;
+      cur.count += 1;
+      map.set(name, cur);
+    };
     for (const r of rows) {
       const name = r.person_name?.trim();
       if (!name) continue;
-      const cur = map.get(name) ?? { total: 0, count: 0 };
-      cur.total += Number(r.amount || 0);
-      cur.count += 1;
-      map.set(name, cur);
+      bump(name, Number(r.amount || 0));
+    }
+    for (const item of approvedPayQuery.data ?? []) {
+      const name = item.team_member?.display_name?.trim();
+      if (!name) continue;
+      const p = projectMap.get(item.project_id) ?? null;
+      if (filters.projectIds.length && !filters.projectIds.includes(item.project_id)) continue;
+      if (filters.yearIds.length && !filters.yearIds.includes(p?.year_id ?? '')) continue;
+      if (filters.startDate && item.pay_date < filters.startDate) continue;
+      if (filters.endDate && item.pay_date > filters.endDate) continue;
+      if (filters.locations.length) {
+        const loc = (p?.location || 'Unspecified').trim() || 'Unspecified';
+        if (!filters.locations.includes(loc)) continue;
+      }
+      if (filters.projectTypes.length) {
+        const t = (p?.project_type || 'Untyped').trim() || 'Untyped';
+        if (!filters.projectTypes.includes(t)) continue;
+      }
+      if (filters.photographers.length && !filters.photographers.includes(name)) continue;
+      if (filters.search) {
+        const s = filters.search.toLowerCase();
+        if (!`${item.description} ${name}`.toLowerCase().includes(s)) continue;
+      }
+      bump(name, Number(item.amount || 0));
     }
     return Array.from(map.entries())
       .map(([name, v]) => ({ key: name, label: name, total: v.total, count: v.count }))
       .sort((a, b) => b.total - a.total);
-  }, [rows]);
+  }, [rows, approvedPayQuery.data, projectMap, filters]);
 
   // Team-size buckets: expenses grouped by # of photographers on their project.
   const byTeamSize: Bucket[] = useMemo(() => {
@@ -319,8 +349,12 @@ export function DashboardPage() {
     for (const p of projects.data ?? []) {
       for (const ph of p.photographers ?? []) set.add(ph);
     }
+    for (const item of approvedPayQuery.data ?? []) {
+      const name = item.team_member?.display_name?.trim();
+      if (name) set.add(name);
+    }
     return Array.from(set).sort();
-  }, [rawRows, projects.data]);
+  }, [rawRows, projects.data, approvedPayQuery.data]);
 
   function exportCsv() {
     if (rows.length === 0) {

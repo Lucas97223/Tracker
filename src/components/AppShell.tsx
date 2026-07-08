@@ -6,8 +6,8 @@ import { SyncStatusBadge } from './SyncStatusBadge';
 import { ConflictDialog } from './ConflictDialog';
 
 export function AppShell() {
-  useRealtimeSync();
-  const { profile, signOut, isAdmin } = useAuth();
+  const { profile, signOut, isAdmin, orgId } = useAuth();
+  useRealtimeSync(orgId);
   const navigate = useNavigate();
 
   async function handleSignOut() {

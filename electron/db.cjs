@@ -16,7 +16,29 @@ function getDb() {
   _db.pragma('journal_mode = WAL');
   _db.pragma('foreign_keys = ON');
   _applySchema(_db);
+  _migrateSchema(_db);
   return _db;
+}
+
+// Additive column migrations for local DBs created before a column existed.
+// CREATE TABLE IF NOT EXISTS won't touch existing tables, so each new remote
+// column must be retrofitted here or upserts of synced rows will fail.
+function _migrateSchema(db) {
+  const addColumns = [
+    ['years',      'org_id TEXT'],
+    ['projects',   'org_id TEXT'],
+    ['expenses',   'org_id TEXT'],
+    ['categories', 'org_id TEXT'],
+    ['accounts',   'org_id TEXT'],
+    ['profiles',   'default_org_id TEXT'],
+  ];
+  for (const [table, ddl] of addColumns) {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+    } catch (e) {
+      if (!/duplicate column/i.test(String(e.message))) throw e;
+    }
+  }
 }
 
 function _applySchema(db) {

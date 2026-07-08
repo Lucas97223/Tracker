@@ -10,12 +10,17 @@ import type { Expense, Project, Year, Category } from '../types/database';
  *   2. Writes the changed row into the local SQLite cache so offline reads
  *      stay up-to-date without a full re-fetch.
  */
-export function useRealtimeSync() {
+export function useRealtimeSync(orgId?: string | null) {
   const qc = useQueryClient();
 
   useEffect(() => {
+    // Channel per org. Row payloads are already filtered server-side by RLS
+    // (WALRUS): subscribers only receive rows their policies let them SELECT,
+    // so cross-org data never reaches this client. We deliberately do NOT add
+    // an org_id filter param: DELETE events carry only the primary key, and a
+    // column filter would silently drop them.
     const channel = supabase
-      .channel('public-changes')
+      .channel(orgId ? `org-${orgId}-changes` : 'public-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'years' }, (payload) => {
         if (payload.new && Object.keys(payload.new).length > 0) {
           void localDb.upsertYear(payload.new as Year);
@@ -66,8 +71,19 @@ export function useRealtimeSync() {
         qc.invalidateQueries({ queryKey: ['journal'] });
         qc.invalidateQueries({ queryKey: ['reports'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+        qc.invalidateQueries({ queryKey: ['team'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_members' }, () => {
+        qc.invalidateQueries({ queryKey: ['team'] });
+        qc.invalidateQueries({ queryKey: ['pay-items'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pay_items' }, () => {
+        qc.invalidateQueries({ queryKey: ['pay-items'] });
+        qc.invalidateQueries({ queryKey: ['reports'] });
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [qc]);
+  }, [qc, orgId]);
 }

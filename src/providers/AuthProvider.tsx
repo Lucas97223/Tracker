@@ -9,6 +9,8 @@ interface AuthState {
   profile: Profile | null;
   loading: boolean;
   role: Role | null;
+  /** The user's default organization (single-org UX for now). */
+  orgId: string | null;
   isAdmin: boolean;
   canEdit: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -233,6 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       loading,
       role,
+      orgId: profile?.default_org_id ?? null,
       isAdmin: role === 'admin',
       canEdit: role === 'admin' || role === 'editor',
       async signIn(email, password) {
