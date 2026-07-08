@@ -4,9 +4,12 @@
 
 ## Current state
 
-- **Phase:** 0.5 — Foundations — **complete, awaiting user approval at the gate**
-- **Live deployment:** NOT done. The live Supabase project still runs 0001–0010; migrations 0011–0015 are repo-only until approved (`supabase db push` needs the DB password, or paste the five files into the SQL editor in order).
-- **Next phase:** 1 — Money in (contacts, invoices, payments→GL, `client_paid` derived+blocked, `v_project_pnl`-backed UI, AR aging, tax, vendors) + the deferred `years` demotion (D-D).
+- **Phase:** 1 — Money in — **in progress** (gate 0.5 passed 2026-07-08; user approved proceeding)
+- **Live deployment: BLOCKED on credentials (2026-07-08).**
+  - DB password provided ("Ttlljjmm6") **fails authentication** against `db.biwnmfauratqfbywxxtz.supabase.co` (connection reachable; `FATAL: password authentication failed`). Needs the exact password or a reset: Supabase Dashboard → Project Settings → Database. Migrations 0011+ stay repo-only until then.
+  - GitHub `https://github.com/Lucas97223/Tracker` reachable; its initial README commit is merged into local `main`, but **push needs auth** (no `gh` CLI, no stored token). Either install/log in `gh auth login`, or provide a PAT.
+- **Phase 1 scope:** contacts + `projects.contact_id`; tax_rates/invoices/lines/schedules; payment RPCs posting `DR cash / CR revenue (+ CR tax liability)` in one transaction; `client_paid` derived + write-blocked (legacy balances become backfilled invoices+payments so history turns ledger-backed); UI money tiles switch to GL views; reports page (first ledger UI); AR aging; vendors + 1099 view; `years` demotion (D-D); accounting-period auto-assignment (closes recon gap #3).
+- **Known Phase-1 gate items:** overdue-reminder *sending* needs an ESP choice + API key (aging view/UI ship regardless); Edge Function deploys would also need a Supabase access token.
 
 ## Phase 0.5 gate summary
 

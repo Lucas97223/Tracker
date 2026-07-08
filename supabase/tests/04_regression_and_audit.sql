@@ -35,8 +35,12 @@ select tests.assert(
 select tests.become(:'editor_u');
 set role authenticated;
 insert into years (year_value) values (2030);
-insert into projects (year_id, name, client, location, client_paid)
-  select id, 'Regression Shoot', 'Acme', 'Berlin', 2000.00 from years where year_value = 2030;
+insert into projects (year_id, name, client, location)
+  select id, 'Regression Shoot', 'Acme', 'Berlin' from years where year_value = 2030;
+select tests.assert(
+  (select contact_id is not null from projects where name = 'Regression Shoot') = false
+    or exists (select 1 from contacts where name = 'Acme'),
+  'client text remains accepted (contact backfill is for pre-0016 rows)');
 insert into expenses (project_id, category_id, description, amount, expense_date, location)
   select p.id, c.id, 'Flight', 350.00, '2030-05-02', 'Berlin'
   from projects p, categories c where p.name = 'Regression Shoot' and c.name = 'Travel';
@@ -45,12 +49,19 @@ insert into expenses (project_id, category_id, description, amount, expense_date
   from projects p, categories c where p.name = 'Regression Shoot' and c.name = 'Accommodation';
 update expenses set amount = 175.00 where description = 'Hotel';
 
--- client_paid remains directly editable in Phase 0.5. Phase 1 derives it from
--- payments and write-blocks it — this assertion is EXPECTED TO FLIP then.
-update projects set client_paid = 2500.00 where name = 'Regression Shoot';
+-- Phase 1 (D3): client_paid is derived from payments and write-blocked.
+do $$
+begin
+  update public.projects set client_paid = 2500.00 where name = 'Regression Shoot';
+  raise exception 'GUARD FAILED: client_paid direct write accepted';
+exception when check_violation then null;
+end $$;
+-- Unchanged-value whole-row updates (the Electron offline queue pattern) pass.
+update projects set client_paid = client_paid, location = 'Berlin Mitte'
+  where name = 'Regression Shoot';
 select tests.assert(
-  (select client_paid = 2500.00 from projects where name = 'Regression Shoot'),
-  'client_paid editable until the Phase 1 rollup lands');
+  (select location = 'Berlin Mitte' from projects where name = 'Regression Shoot'),
+  'whole-row update with unchanged client_paid still works');
 
 -- rollup parity: view totals equal table sums
 select tests.assert(
