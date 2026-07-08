@@ -22,3 +22,4 @@ release
 # supabase local dev
 supabase/.temp
 supabase/.branches
+.pgdata
