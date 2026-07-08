@@ -9,6 +9,12 @@
 --      (Dr: category's expense account, Cr: Cash). Record in expense_journal_map.
 --   3. Install triggers on `expenses` so future INSERT/UPDATE/DELETE generate
 --      the corresponding ledger activity (creates, reversals).
+--
+-- Zero-amount expenses post NOTHING. A $0 event has no ledger effect, and the
+-- journal_lines checks (debit XOR credit, never neither) rightly forbid 0/0
+-- lines. This matters in production: the photographer-pay sync (0010) creates
+-- $0 placeholder rows, which live happily as expenses but must be skipped
+-- here and by the triggers. An edit from $0 to a real amount posts then.
 
 -- ---------- Step 1: create one expense account per existing category ----------
 
@@ -68,6 +74,7 @@ with new_entries as (
   from public.expenses e
   left join public.expense_journal_map m on m.expense_id = e.id
   where m.expense_id is null
+    and e.amount <> 0
   returning id, source_id
 )
 insert into public.expense_journal_map (expense_id, journal_entry_id)
@@ -148,6 +155,11 @@ declare
   expense_account_id   uuid;
   je_id                uuid;
 begin
+  -- $0 expenses (photographer-pay placeholders) have no ledger effect.
+  if NEW.amount = 0 then
+    return NEW;
+  end if;
+
   select id into cash_id from public.accounts where code = '1000' limit 1;
   if cash_id is null then
     raise exception 'Cash account (1000) is missing. Migration 0007 must be run first.';
@@ -227,23 +239,30 @@ begin
     update public.journal_entries set reversed_by = rev_je_id where id = old_je_id;
   end if;
 
-  -- Post the new entry.
-  insert into public.journal_entries
-    (entry_date, memo, source_type, source_id, project_id, created_by, posted, posted_at)
-  values
-    (NEW.expense_date, NEW.description, 'expense', NEW.id, NEW.project_id,
-     NEW.created_by, true, now())
-  returning id into new_je_id;
+  -- Post the new entry — unless the new amount is zero (no ledger effect).
+  if NEW.amount <> 0 then
+    insert into public.journal_entries
+      (entry_date, memo, source_type, source_id, project_id, created_by, posted, posted_at)
+    values
+      (NEW.expense_date, NEW.description, 'expense', NEW.id, NEW.project_id,
+       NEW.created_by, true, now())
+    returning id into new_je_id;
 
-  insert into public.journal_lines
-    (journal_entry_id, account_id, debit, credit, description, project_id, category_id, line_number)
-  values
-    (new_je_id, new_expense_acct, NEW.amount, 0, NEW.description, NEW.project_id, NEW.category_id, 1),
-    (new_je_id, cash_id,          0, NEW.amount, NEW.description, NEW.project_id, NEW.category_id, 2);
+    insert into public.journal_lines
+      (journal_entry_id, account_id, debit, credit, description, project_id, category_id, line_number)
+    values
+      (new_je_id, new_expense_acct, NEW.amount, 0, NEW.description, NEW.project_id, NEW.category_id, 1),
+      (new_je_id, cash_id,          0, NEW.amount, NEW.description, NEW.project_id, NEW.category_id, 2);
 
-  update public.expense_journal_map
-    set journal_entry_id = new_je_id, created_at = now()
-    where expense_id = NEW.id;
+    -- Upsert: a $0-born expense (photographer placeholder) has no map row yet.
+    insert into public.expense_journal_map (expense_id, journal_entry_id)
+    values (NEW.id, new_je_id)
+    on conflict (expense_id)
+      do update set journal_entry_id = excluded.journal_entry_id, created_at = now();
+  else
+    -- Edited down to $0: the reversal above cleared the books; drop the link.
+    delete from public.expense_journal_map where expense_id = NEW.id;
+  end if;
 
   return NEW;
 end $$;

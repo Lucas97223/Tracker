@@ -335,6 +335,11 @@ declare
   expense_account_id   uuid;
   je_id                uuid;
 begin
+  -- $0 expenses have no ledger effect (0/0 lines are forbidden by design).
+  if NEW.amount = 0 then
+    return NEW;
+  end if;
+
   select id into cash_id from public.accounts
     where code = '1000' and org_id = NEW.org_id limit 1;
   if cash_id is null then
@@ -406,22 +411,30 @@ begin
     update public.journal_entries set reversed_by = rev_je_id where id = old_je_id;
   end if;
 
-  insert into public.journal_entries
-    (entry_date, memo, source_type, source_id, project_id, created_by, posted, posted_at, org_id)
-  values
-    (NEW.expense_date, NEW.description, 'expense', NEW.id, NEW.project_id,
-     NEW.created_by, true, now(), NEW.org_id)
-  returning id into new_je_id;
+  -- Post the new entry — unless the new amount is zero (no ledger effect).
+  if NEW.amount <> 0 then
+    insert into public.journal_entries
+      (entry_date, memo, source_type, source_id, project_id, created_by, posted, posted_at, org_id)
+    values
+      (NEW.expense_date, NEW.description, 'expense', NEW.id, NEW.project_id,
+       NEW.created_by, true, now(), NEW.org_id)
+    returning id into new_je_id;
 
-  insert into public.journal_lines
-    (journal_entry_id, account_id, debit, credit, description, project_id, category_id, line_number, org_id)
-  values
-    (new_je_id, new_expense_acct, NEW.amount, 0, NEW.description, NEW.project_id, NEW.category_id, 1, NEW.org_id),
-    (new_je_id, cash_id,          0, NEW.amount, NEW.description, NEW.project_id, NEW.category_id, 2, NEW.org_id);
+    insert into public.journal_lines
+      (journal_entry_id, account_id, debit, credit, description, project_id, category_id, line_number, org_id)
+    values
+      (new_je_id, new_expense_acct, NEW.amount, 0, NEW.description, NEW.project_id, NEW.category_id, 1, NEW.org_id),
+      (new_je_id, cash_id,          0, NEW.amount, NEW.description, NEW.project_id, NEW.category_id, 2, NEW.org_id);
 
-  update public.expense_journal_map
-    set journal_entry_id = new_je_id, created_at = now()
-    where expense_id = NEW.id;
+    -- Upsert: a $0-born expense has no map row yet.
+    insert into public.expense_journal_map (expense_id, journal_entry_id, org_id)
+    values (NEW.id, new_je_id, NEW.org_id)
+    on conflict (expense_id)
+      do update set journal_entry_id = excluded.journal_entry_id, created_at = now();
+  else
+    -- Edited down to $0: the reversal above cleared the books; drop the link.
+    delete from public.expense_journal_map where expense_id = NEW.id;
+  end if;
 
   return NEW;
 end $$;

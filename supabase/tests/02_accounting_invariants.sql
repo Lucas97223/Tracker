@@ -110,6 +110,33 @@ select tests.assert(
   (select cogs = 400.00 from v_project_pnl where project_name = 'Ledger Proj'),
   'COGS-mapped expense lands in the P&L cogs column');
 
+-- ---------- zero-amount expenses have no ledger effect ----------
+-- ($0 rows were the legacy photographer-pay placeholder mechanism; the GL
+-- forbids 0/0 lines, so the mirror must skip them — and must catch up when a
+-- $0 row is edited to a real amount, or reverse when edited back to zero.)
+insert into expenses (project_id, category_id, description, amount, expense_date)
+  select p.id, c.id, 'Placeholder fee', 0, '2026-03-15'
+  from projects p, categories c where p.name = 'Ledger Proj' and c.name = 'Misc';
+select tests.assert(
+  (select count(*) = 0 from expense_journal_map m
+     join expenses e on e.id = m.expense_id where e.description = 'Placeholder fee'),
+  '$0 expense posts nothing');
+
+update expenses set amount = 275.00 where description = 'Placeholder fee';
+select tests.assert(
+  (select jl.debit = 275.00 from journal_lines jl
+     join expense_journal_map m on m.journal_entry_id = jl.journal_entry_id
+     join expenses e on e.id = m.expense_id
+     where e.description = 'Placeholder fee' and jl.debit > 0),
+  '$0 → $275 edit posts one fresh entry');
+
+update expenses set amount = 0 where description = 'Placeholder fee';
+select tests.assert(
+  (select count(*) = 0 from expense_journal_map m
+     join expenses e on e.id = m.expense_id where e.description = 'Placeholder fee'),
+  '$275 → $0 edit reverses and unlinks');
+delete from expenses where description = 'Placeholder fee';
+
 -- ---------- trial balance stays balanced ----------
 select tests.assert(
   (select coalesce(sum(total_debit), 0) = coalesce(sum(total_credit), 0) from v_trial_balance),

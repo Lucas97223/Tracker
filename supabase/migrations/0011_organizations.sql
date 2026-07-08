@@ -140,6 +140,19 @@ end $$;
 
 -- ---------- org_id on every existing table ----------
 
+-- Stamping org_id onto EXISTING ledger rows is a structural migration, not a
+-- financial correction — but the immutability triggers can't know that (they
+-- block every UPDATE on lines of posted entries). Disable exactly those two
+-- for the duration of the backfill. Amounts, accounts and dates are untouched.
+alter table public.journal_lines  disable trigger journal_lines_immutable;
+alter table public.journal_entries disable trigger journal_entries_immutable;
+
+-- The balance check is a DEFERRED constraint trigger; the org_id UPDATE below
+-- would queue its events until commit, and ALTER TABLE (SET NOT NULL, ENABLE
+-- TRIGGER) cannot run with events pending. Make it fire per-statement for the
+-- rest of this transaction — the updates never touch amounts, so it passes.
+set constraints journal_lines_balance immediate;
+
 do $$
 declare
   v_org uuid;
@@ -167,6 +180,9 @@ begin
   execute format('update public.audit_log set org_id = %L where org_id is null', v_org);
   create index if not exists audit_log_org_idx on public.audit_log(org_id);
 end $$;
+
+alter table public.journal_lines  enable trigger journal_lines_immutable;
+alter table public.journal_entries enable trigger journal_entries_immutable;
 -- (project_members intentionally omitted: it is rebuilt as the staffing table
 -- in 0013 and receives org_id there.)
 
