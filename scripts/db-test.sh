@@ -35,28 +35,32 @@ fi
 
 "$PGBIN/pg_ctl" status >/dev/null 2>&1 || "$PGBIN/pg_ctl" start -l "$PGDATA/log" -w >/dev/null
 
-"$PGBIN/dropdb" --if-exists "$DB"
-"$PGBIN/createdb" "$DB"
-
 # -1: each file runs in a single transaction, matching `supabase db push`.
 run() { "$PGBIN/psql" -X -q -1 -v ON_ERROR_STOP=1 -d "$DB" -f "$1"; }
 
-echo "── shim"
-run "$ROOT/supabase/tests/shim/000_auth_shim.sql"
+# Fresh database: auth shim, then every migration in order.
+rebuild() {
+  local m
+  "$PGBIN/dropdb" --if-exists "$DB"
+  "$PGBIN/createdb" "$DB"
+  run "$ROOT/supabase/tests/shim/000_auth_shim.sql"
+  for m in "$ROOT"/supabase/migrations/*.sql; do
+    run "$m"
+  done
+}
 
-echo "── migrations"
-for f in "$ROOT"/supabase/migrations/*.sql; do
-  echo "   $(basename "$f")"
-  run "$f"
-done
+echo "── migrations (fresh database)"
+rebuild
+echo "   all $(ls "$ROOT"/supabase/migrations/*.sql | wc -l | tr -d ' ') migrations applied"
 
-echo "── tests"
+echo "── tests (each file on its own fresh database)"
 shopt -s nullglob
 tests=("$ROOT"/supabase/tests/*.sql)
 if [[ ${#tests[@]} -eq 0 ]]; then
   echo "   (no test files yet)"
 else
   for f in "${tests[@]}"; do
+    rebuild
     echo "   $(basename "$f")"
     run "$f"
   done
