@@ -82,6 +82,20 @@ export function useRealtimeSync(orgId?: string | null) {
         qc.invalidateQueries({ queryKey: ['pay-items'] });
         qc.invalidateQueries({ queryKey: ['reports'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, () => {
+        qc.invalidateQueries({ queryKey: ['contacts'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
+        qc.invalidateQueries({ queryKey: ['invoices'] });
+        qc.invalidateQueries({ queryKey: ['reports'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+        qc.invalidateQueries({ queryKey: ['invoices'] });
+        qc.invalidateQueries({ queryKey: ['projects'] });
+        qc.invalidateQueries({ queryKey: ['project'] });
+        qc.invalidateQueries({ queryKey: ['reports'] });
+        qc.invalidateQueries({ queryKey: ['journal'] });
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

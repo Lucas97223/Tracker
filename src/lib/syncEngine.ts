@@ -54,9 +54,11 @@ export async function flushSyncQueue(): Promise<SyncResult> {
         }
 
         // No conflict (or non-expense table) — push local version.
-        // Strip read-only / meta fields before sending to Supabase.
+        // Strip read-only / meta / server-derived fields before sending.
+        // client_paid is derived from payments (D3) and write-blocked; a stale
+        // cached value replayed from the queue would be rejected wholesale.
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id, created_at, created_by, ...patch } = payload;
+        const { id, created_at, created_by, client_paid, ...patch } = payload;
         const { error } = await supabase
           .from(item.table_name as never)
           .update(patch as never)

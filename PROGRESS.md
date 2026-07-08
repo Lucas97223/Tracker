@@ -4,12 +4,48 @@
 
 ## Current state
 
-- **Phase:** 1 — Money in — **in progress** (gate 0.5 passed 2026-07-08; user approved proceeding)
-- **Live deployment: BLOCKED on credentials (2026-07-08).**
-  - DB password provided ("Ttlljjmm6") **fails authentication** against `db.biwnmfauratqfbywxxtz.supabase.co` (connection reachable; `FATAL: password authentication failed`). Needs the exact password or a reset: Supabase Dashboard → Project Settings → Database. Migrations 0011+ stay repo-only until then.
-  - GitHub `https://github.com/Lucas97223/Tracker` reachable; its initial README commit is merged into local `main`, but **push needs auth** (no `gh` CLI, no stored token). Either install/log in `gh auth login`, or provide a PAT.
-- **Phase 1 scope:** contacts + `projects.contact_id`; tax_rates/invoices/lines/schedules; payment RPCs posting `DR cash / CR revenue (+ CR tax liability)` in one transaction; `client_paid` derived + write-blocked (legacy balances become backfilled invoices+payments so history turns ledger-backed); UI money tiles switch to GL views; reports page (first ledger UI); AR aging; vendors + 1099 view; `years` demotion (D-D); accounting-period auto-assignment (closes recon gap #3).
-- **Known Phase-1 gate items:** overdue-reminder *sending* needs an ESP choice + API key (aging view/UI ship regardless); Edge Function deploys would also need a Supabase access token.
+- **Phase:** 1 — Money in — **complete, awaiting user approval at the gate**
+- **Live deployment: still BLOCKED on credentials.**
+  - DB password ("Ttlljjmm6") **fails authentication** against `db.biwnmfauratqfbywxxtz.supabase.co`. Check/reset: Supabase Dashboard → Project Settings → Database. Migrations 0011–0021 are repo-only until then.
+  - GitHub push to `https://github.com/Lucas97223/Tracker` needs auth (no `gh`, no stored token). The remote's initial commit is already merged into local `main`; one working credential and it pushes.
+- **Next phase:** 2 — Tasks (after live deploy + gate approval).
+
+## Phase 1 gate summary (2026-07-08)
+
+### Shipped — migrations 0016–0021
+
+| # | Migration | Contents |
+|---|---|---|
+| 0016 | contacts | `contacts` (I3), `projects.contact_id`, backfill one contact per distinct client text per org |
+| 0017 | invoicing | `tax_rates` (liability-account-validated), `invoices` (per-org numbering, guarded draft→sent→partial→paid/void state machine, share_token), `invoice_lines` (frozen after draft; revenue-account override validated), `payment_schedules`, derived `v_invoice_amounts` |
+| 0018 | payments | RPC-only `payments` (`record_payment` posts DR cash / CR revenue buckets + CR tax liability with cumulative rounding true-up, all in one transaction; `void_payment` posts reversals and recomputes status), `v_invoice_totals`, `v_ar_aging`, `credit_notes` → 4800 contra-revenue, **accounting periods auto-created + stamped on every journal entry incl. backfill (closes recon gap #3)**, invoice-void blocked while live payments exist |
+| 0019 | client_paid (D3) | derived rollup of non-void payments; direct writes rejected (unchanged-value passes → offline queue safe); **legacy balances become ledger-backed "Historical balance" invoices+payments** via idempotent `backfill_legacy_client_paid()` (API-role execution revoked) |
+| 0020 | vendors + years | `vendors` registry with free-text auto-link trigger + backfill, `v_vendor_1099_totals`; **years demotion (D-D)**: `year_id` derived from `start_date` (find-or-create per org), existing straddlers re-homed |
+| 0021 | share link | anon-callable `get_public_invoice(share_token)` exposing only invoice-facing fields |
+
+### Shipped — app
+
+ContactsPage + ContactPicker (inline quick-create; offline falls back to free text); ProjectPage InvoicesCard (draft lines editor, mark-sent, record/void payments, copy share link, print view); money strip reads `v_project_pnl` online (offline falls back to cached client-side sums); ReportsPage — the ledger's first UI: project P&L, AR aging, trial balance with live balance check; public print-ready invoice route (`#/share/invoice/:token`, no auth); `client_paid` inputs removed from project modals and stripped from create/update/off-line-sync payloads; realtime subscriptions for contacts/invoices/payments.
+
+### Acceptance checklist (verified in `supabase/tests/05_invoicing_payments.sql` + `06_legacy_backfill.sql`)
+
+- [x] Contact → project → invoice → two partial payments: each payment posts one balanced entry crediting revenue; status walks draft→sent→partial→paid
+- [x] `UPDATE projects SET client_paid` rejected; rollup equals Σ payments exactly (incl. after voids)
+- [x] `v_project_pnl` revenue == ledger revenue; zero-invoice project shows zero revenue; legacy scalars became real ledger history (06)
+- [x] Sales tax lands in the liability account (proportional on partials, trues up exactly on final payment), never in revenue
+- [x] Voiding a payment posts a reversal (originals never edited); paid → partial recomputed
+- [x] I2 spot-check: ProjectPage strip reads GL views; dashboard "paid" is the derived rollup; ReportsPage is entirely view-backed
+- [x] Regression: suites 01–04 unchanged and green; expense flow untouched; lint/typecheck/vitest/build green
+- [x] Years demotion: project created with only a start_date lands in the right (auto-created) year
+
+### Deferred / gate items
+
+1. **Overdue email reminders**: AR aging view + UI shipped; *sending* needs an ESP decision (recommend Resend) + API key + a Supabase access token for Edge Function deploys. Say the word and Phase 2 starts with it.
+2. Invoice "PDF" = the print stylesheet on the share route (browser print-to-PDF). A real PDF lib is outside the allowed dependency list (§8) — flag if you want one.
+3. Payment schedules: table + auto-mark-paid shipped; a schedule-editing UI is thin (create via SQL/API only) — UI slated for Phase 5 (proposals) unless you want it sooner.
+4. Full browser verification of logged-in flows requires the live deploy (shadow DB has no Supabase API layer). The DB behavior itself is covered by the six SQL suites.
+
+## Previous gates
 
 ## Phase 0.5 gate summary
 

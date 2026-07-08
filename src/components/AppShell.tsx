@@ -32,6 +32,22 @@ export function AppShell() {
               Dashboard
             </NavLink>
             <NavLink
+              to="/contacts"
+              className={({ isActive }) =>
+                `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
+              }
+            >
+              Contacts
+            </NavLink>
+            <NavLink
+              to="/reports"
+              className={({ isActive }) =>
+                `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
+              }
+            >
+              Reports
+            </NavLink>
+            <NavLink
               to="/categories"
               className={({ isActive }) =>
                 `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`

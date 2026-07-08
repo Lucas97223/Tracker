@@ -9,6 +9,9 @@ import { AdminPage } from './pages/AdminPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { AuditLogPage } from './pages/AuditLogPage';
 import { HomePage } from './pages/HomePage';
+import { ContactsPage } from './pages/ContactsPage';
+import { ReportsPage } from './pages/ReportsPage';
+import { PublicInvoicePage } from './pages/PublicInvoicePage';
 import { LoadingScreen } from './components/LoadingScreen';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -41,6 +44,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/sign-in" element={<SignInPage />} />
+      {/* Public, token-gated: the invoice share link (no auth). */}
+      <Route path="/share/invoice/:token" element={<PublicInvoicePage />} />
       <Route
         path="/"
         element={
@@ -53,6 +58,8 @@ export default function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="years/:yearId" element={<YearPage />} />
         <Route path="projects/:projectId" element={<ProjectPage />} />
+        <Route path="contacts" element={<ContactsPage />} />
+        <Route path="reports" element={<ReportsPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route
           path="admin"

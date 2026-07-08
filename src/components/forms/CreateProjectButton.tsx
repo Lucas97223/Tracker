@@ -5,6 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal } from '../Modal';
 import { useCreateProject, useProjects, PROJECT_TYPE_SUGGESTIONS } from '../../hooks/useProjects';
 import { useToast } from '../../providers/ToastProvider';
+import { useSyncContext } from '../../providers/SyncProvider';
+import { ContactPicker } from '../contacts/ContactPicker';
 import type { ProjectStatus } from '../../types/database';
 import { Tabs, TabPanel } from '../Tabs';
 import { ChipInput } from '../ChipInput';
@@ -13,12 +15,12 @@ const schema = z.object({
   name: z.string().min(1, 'Name is required').max(120),
   description: z.string().max(2000).optional(),
   client: z.string().max(120).optional(),
+  contact_id: z.string().nullable().optional(),
   location: z.string().max(120).optional(),
   project_type: z.string().max(60).optional(),
   status: z.enum(['planning', 'active', 'completed', 'archived']),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
-  client_paid: z.coerce.number().min(0, 'Must be ≥ 0').optional(),
   photographers: z.array(z.string()).default([]),
   collection_details: z.string().max(10000).optional(),
 });
@@ -30,12 +32,12 @@ const DETAILS_FIELDS = new Set<keyof FormValues>([
   'name',
   'description',
   'client',
+  'contact_id',
   'location',
   'project_type',
   'status',
   'start_date',
   'end_date',
-  'client_paid',
 ]);
 
 export function CreateProjectButton({
@@ -51,6 +53,7 @@ export function CreateProjectButton({
   const [tab, setTab] = useState<'details' | 'team' | 'collection'>('details');
   const create = useCreateProject();
   const toast = useToast();
+  const { isOnline } = useSyncContext();
   const allProjects = useProjects();
   const knownTypes = Array.from(
     new Set([
@@ -62,9 +65,9 @@ export function CreateProjectButton({
     new Set((allProjects.data ?? []).flatMap((p) => p.photographers ?? [])),
   ).sort();
 
-  const { register, handleSubmit, formState, reset, control, watch } = useForm<FormValues>({
+  const { register, handleSubmit, formState, reset, control, watch, setValue } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { status: 'active', photographers: [], client_paid: 0 },
+    defaultValues: { status: 'active', photographers: [], contact_id: null },
   });
 
   // After a failed submit, jump to the tab that holds the first error so the user can see it.
@@ -86,17 +89,17 @@ export function CreateProjectButton({
         name: v.name,
         description: v.description || null,
         client: v.client || null,
+        contact_id: v.contact_id ?? null,
         location: v.location || null,
         project_type: v.project_type?.trim() || null,
         status: v.status,
         start_date: v.start_date || null,
         end_date: v.end_date || null,
-        client_paid: v.client_paid ?? 0,
         photographers: v.photographers ?? [],
         collection_details: v.collection_details || null,
       });
       toast.success('Project created');
-      reset({ status: 'active', photographers: [], client_paid: 0 });
+      reset({ status: 'active', photographers: [], contact_id: null });
       setTab('details');
       setOpen(false);
       onCreated?.(proj.id);
@@ -140,9 +143,28 @@ export function CreateProjectButton({
                   <p className="mt-1 text-xs text-red-600">{formState.errors.name.message}</p>
                 )}
               </div>
-              <div>
-                <label className="label">Client</label>
-                <input className="input" {...register('client')} />
+              <div className="col-span-2">
+                {isOnline ? (
+                  <Controller
+                    control={control}
+                    name="contact_id"
+                    render={({ field }) => (
+                      <ContactPicker
+                        label="Client"
+                        value={field.value ?? null}
+                        onChange={(id, name) => {
+                          field.onChange(id);
+                          setValue('client', name ?? '');
+                        }}
+                      />
+                    )}
+                  />
+                ) : (
+                  <>
+                    <label className="label">Client (offline — free text)</label>
+                    <input className="input" {...register('client')} />
+                  </>
+                )}
               </div>
               <div>
                 <label className="label">Location</label>
@@ -175,23 +197,6 @@ export function CreateProjectButton({
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="label">Client paid</label>
-                <input
-                  className="input"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  {...register('client_paid')}
-                />
-                {formState.errors.client_paid && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {formState.errors.client_paid.message}
-                  </p>
-                )}
               </div>
               <div>
                 <label className="label">Start date</label>

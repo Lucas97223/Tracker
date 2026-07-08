@@ -71,11 +71,13 @@ export interface ProjectInput {
   name: string;
   description?: string | null;
   client?: string | null;
+  contact_id?: string | null;
   location?: string | null;
   project_type?: string | null;
   status?: ProjectStatus;
   start_date?: string | null;
   end_date?: string | null;
+  /** Derived from payments since Phase 1 (D3); never sent to the server. */
   client_paid?: number | string;
   photographers?: string[];
   collection_details?: string | null;
@@ -92,16 +94,19 @@ export function useCreateProject() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (input: ProjectInput): Promise<Project> => {
+      // client_paid is server-derived (D3): never part of an insert payload.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { client_paid: _cp, ...clean } = input;
       if (!isOnline) {
         const now = new Date().toISOString();
         const row: Project = {
           id: crypto.randomUUID(),
           status: 'active',
-          description: null, client: null, location: null, project_type: null,
+          description: null, client: null, contact_id: null, location: null, project_type: null,
           start_date: null, end_date: null,
           photographers: [], collection_details: null,
-          ...input,
-          client_paid: String(input.client_paid ?? '0.00'),
+          ...clean,
+          client_paid: '0.00',
           created_by: user?.id ?? null,
           created_at: now,
         };
@@ -111,7 +116,7 @@ export function useCreateProject() {
       }
       const { data, error } = await supabase
         .from('projects')
-        .insert({ status: 'active', ...input })
+        .insert({ status: 'active', ...clean })
         .select('*')
         .single();
       if (error) throw error;
@@ -131,21 +136,21 @@ export function useUpdateProject() {
   const { isOnline } = useSyncContext();
   return useMutation({
     mutationFn: async ({ id, ...patch }: { id: string } & Partial<ProjectInput>): Promise<Project> => {
+      // client_paid is server-derived (D3): strip it from every update payload
+      // (the DB rejects changes; unchanged-value echoes are pointless anyway).
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { client_paid: _cp, ...clean } = patch;
       if (!isOnline) {
         const existing = await localDb.queryProjectById(id);
         if (!existing) throw new Error('Project not found in local cache — connect to internet to edit.');
-        const updated: Project = {
-          ...existing,
-          ...patch,
-          client_paid: patch.client_paid !== undefined ? String(patch.client_paid) : existing.client_paid,
-        };
+        const updated: Project = { ...existing, ...clean };
         await localDb.upsertProject(updated);
         await localDb.enqueue('projects', id, 'update', updated);
         return updated;
       }
       const { data, error } = await supabase
         .from('projects')
-        .update(patch)
+        .update(clean)
         .eq('id', id)
         .select('*')
         .single();

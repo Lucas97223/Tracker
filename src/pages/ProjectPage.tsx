@@ -4,7 +4,9 @@ import { useProject, useDeleteProject, useUpdateProject } from '../hooks/useProj
 import { useExpensesForProject } from '../hooks/useExpenses';
 import { useCategories } from '../hooks/useCategories';
 import { usePayItemsForProject } from '../hooks/useTeam';
+import { useProjectPnL } from '../hooks/useReports';
 import { PayItemsCard } from '../components/team/PayItemsCard';
+import { InvoicesCard } from '../components/invoices/InvoicesCard';
 import { useAuth } from '../providers/AuthProvider';
 import { formatMoney, sumMoney } from '../lib/money';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -30,6 +32,7 @@ export function ProjectPage() {
   const project = useProject(projectId);
   const expenses = useExpensesForProject(projectId);
   const payItems = usePayItemsForProject(projectId);
+  const pnl = useProjectPnL(projectId);
   const categories = useCategories();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -72,7 +75,11 @@ export function ProjectPage() {
       ),
     [payItems.data],
   );
-  const totalOut = total + approvedPay;
+
+  // Money strip source of truth (I2): the ledger view when online, with the
+  // legacy client-side computation as the offline fallback.
+  const pnlRow = (pnl.data ?? [])[0];
+  const totalOut = pnlRow ? Number(pnlRow.cogs) + Number(pnlRow.expense) : total + approvedPay;
 
   if (project.isLoading) return <p className="text-sm text-slate-500">Loading…</p>;
   if (!project.data) return <p className="text-sm text-slate-500">Project not found.</p>;
@@ -165,7 +172,8 @@ export function ProjectPage() {
         )}
       </header>
 
-      {/* Project P&L: Paid (from client) - Spent (expenses + approved team pay) = Profit */}
+      {/* Project P&L. "Client paid" is the payments rollup (= ledger revenue,
+          cash basis); "Spent" reads the GL view online (I2). */}
       <div className="card sticky top-0 z-10 grid grid-cols-3 divide-x divide-slate-100">
         <PnLCell label="Client paid" value={formatMoney(p.client_paid ?? '0')} tone="paid" />
         <PnLCell
@@ -179,6 +187,8 @@ export function ProjectPage() {
           tone={Number(p.client_paid ?? 0) - totalOut >= 0 ? 'profit' : 'loss'}
         />
       </div>
+
+      <InvoicesCard project={p} canEdit={canEdit} isAdmin={isAdmin} />
 
       {projectId && <PayItemsCard projectId={projectId} canEdit={canEdit} isAdmin={isAdmin} />}
 

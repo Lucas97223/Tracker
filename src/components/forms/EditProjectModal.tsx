@@ -5,20 +5,24 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal } from '../Modal';
 import { useUpdateProject, useProjects, PROJECT_TYPE_SUGGESTIONS } from '../../hooks/useProjects';
 import { useToast } from '../../providers/ToastProvider';
+import { useSyncContext } from '../../providers/SyncProvider';
+import { ContactPicker } from '../contacts/ContactPicker';
 import type { Project, ProjectStatus } from '../../types/database';
 import { Tabs, TabPanel } from '../Tabs';
 import { ChipInput } from '../ChipInput';
 
+// client_paid is intentionally absent: since Phase 1 it is derived from
+// payments and write-blocked at the database (D3).
 const schema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().optional(),
   client: z.string().optional(),
+  contact_id: z.string().nullable().optional(),
   location: z.string().optional(),
   project_type: z.string().max(60).optional(),
   status: z.enum(['planning', 'active', 'completed', 'archived']),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
-  client_paid: z.coerce.number().min(0, 'Must be ≥ 0').optional(),
   photographers: z.array(z.string()).default([]),
   collection_details: z.string().max(10000).optional(),
 });
@@ -29,12 +33,12 @@ const DETAILS_FIELDS = new Set<keyof FormValues>([
   'name',
   'description',
   'client',
+  'contact_id',
   'location',
   'project_type',
   'status',
   'start_date',
   'end_date',
-  'client_paid',
 ]);
 
 export function EditProjectModal({
@@ -49,6 +53,7 @@ export function EditProjectModal({
   const update = useUpdateProject();
   const toast = useToast();
   const allProjects = useProjects();
+  const { isOnline } = useSyncContext();
   const [tab, setTab] = useState<'details' | 'team' | 'collection'>('details');
   const knownTypes = Array.from(
     new Set([
@@ -60,18 +65,18 @@ export function EditProjectModal({
     new Set((allProjects.data ?? []).flatMap((p) => p.photographers ?? [])),
   ).sort();
 
-  const { register, handleSubmit, formState, control, watch, reset } = useForm<FormValues>({
+  const { register, handleSubmit, formState, control, watch, reset, setValue } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: project.name,
       description: project.description ?? '',
       client: project.client ?? '',
+      contact_id: project.contact_id ?? null,
       location: project.location ?? '',
       project_type: project.project_type ?? '',
       status: project.status,
       start_date: project.start_date ?? '',
       end_date: project.end_date ?? '',
-      client_paid: Number(project.client_paid ?? 0),
       photographers: project.photographers ?? [],
       collection_details: project.collection_details ?? '',
     },
@@ -83,12 +88,12 @@ export function EditProjectModal({
         name: project.name,
         description: project.description ?? '',
         client: project.client ?? '',
+        contact_id: project.contact_id ?? null,
         location: project.location ?? '',
         project_type: project.project_type ?? '',
         status: project.status,
         start_date: project.start_date ?? '',
         end_date: project.end_date ?? '',
-        client_paid: Number(project.client_paid ?? 0),
         photographers: project.photographers ?? [],
         collection_details: project.collection_details ?? '',
       });
@@ -114,12 +119,12 @@ export function EditProjectModal({
         name: v.name,
         description: v.description || null,
         client: v.client || null,
+        contact_id: v.contact_id ?? null,
         location: v.location || null,
         project_type: v.project_type?.trim() || null,
         status: v.status,
         start_date: v.start_date || null,
         end_date: v.end_date || null,
-        client_paid: v.client_paid ?? 0,
         photographers: v.photographers ?? [],
         collection_details: v.collection_details || null,
       });
@@ -153,9 +158,29 @@ export function EditProjectModal({
                 <p className="mt-1 text-xs text-red-600">{formState.errors.name.message}</p>
               )}
             </div>
-            <div>
-              <label className="label">Client</label>
-              <input className="input" {...register('client')} />
+            <div className="col-span-2">
+              {isOnline ? (
+                <Controller
+                  control={control}
+                  name="contact_id"
+                  render={({ field }) => (
+                    <ContactPicker
+                      label="Client"
+                      value={field.value ?? null}
+                      onChange={(id, name) => {
+                        field.onChange(id);
+                        // keep the legacy display text in sync with the FK
+                        setValue('client', name ?? '');
+                      }}
+                    />
+                  )}
+                />
+              ) : (
+                <>
+                  <label className="label">Client (offline — free text)</label>
+                  <input className="input" {...register('client')} />
+                </>
+              )}
             </div>
             <div>
               <label className="label">Location</label>
@@ -184,20 +209,6 @@ export function EditProjectModal({
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="label">Client paid</label>
-              <input
-                className="input"
-                type="number"
-                step="0.01"
-                min="0"
-                inputMode="decimal"
-                {...register('client_paid')}
-              />
-              {formState.errors.client_paid && (
-                <p className="mt-1 text-xs text-red-600">{formState.errors.client_paid.message}</p>
-              )}
             </div>
             <div>
               <label className="label">Start date</label>

@@ -78,6 +78,160 @@ export interface MemberRate {
   updated_at: string;
 }
 
+// --- Money-in (Phase 1) ---
+export type ContactType = 'person' | 'company';
+export type ContactLifecycle = 'lead' | 'client' | 'archived';
+export type InvoiceStatus = 'draft' | 'sent' | 'partial' | 'paid' | 'void';
+export type ScheduleStatus = 'pending' | 'paid' | 'cancelled';
+
+export interface Contact {
+  id: string;
+  org_id: string;
+  type: ContactType;
+  lifecycle: ContactLifecycle;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  address: Record<string, unknown>;
+  source: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaxRate {
+  id: string;
+  org_id: string;
+  name: string;
+  rate: string; // numeric fraction, e.g. "0.0825"
+  liability_account_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Invoice {
+  id: string;
+  org_id: string;
+  number: number;
+  contact_id: string;
+  project_id: string | null;
+  status: InvoiceStatus;
+  issue_date: string;
+  due_date: string | null;
+  sent_at: string | null;
+  memo: string | null;
+  share_token: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceLine {
+  id: string;
+  org_id: string;
+  invoice_id: string;
+  description: string;
+  qty: string;
+  unit_price: string;
+  tax_rate_id: string | null;
+  revenue_account_id: string | null;
+  source_type: string | null;
+  source_id: string | null;
+  line_number: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceTotals {
+  invoice_id: string;
+  org_id: string;
+  subtotal: string;
+  tax_total: string;
+  total: string;
+  paid: string;
+  balance: string;
+}
+
+export interface Payment {
+  id: string;
+  org_id: string;
+  invoice_id: string;
+  payment_date: string;
+  amount: string;
+  method: string | null;
+  reference: string | null;
+  journal_entry_id: string;
+  voided_at: string | null;
+  reversal_entry_id: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface PaymentSchedule {
+  id: string;
+  org_id: string;
+  invoice_id: string | null;
+  project_id: string | null;
+  due_date: string;
+  amount: string;
+  status: ScheduleStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Vendor {
+  id: string;
+  org_id: string;
+  name: string;
+  is_1099: boolean;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ArAgingRow {
+  invoice_id: string;
+  org_id: string;
+  number: number;
+  contact_id: string;
+  contact_name: string;
+  project_id: string | null;
+  issue_date: string;
+  due_date: string | null;
+  status: InvoiceStatus;
+  total: string;
+  paid: string;
+  balance: string;
+  bucket: 'current' | '1-30' | '31-60' | '61-90' | '90+';
+  days_overdue: number;
+}
+
+export interface PublicInvoice {
+  number: number;
+  status: InvoiceStatus;
+  issue_date: string;
+  due_date: string | null;
+  sent_at: string | null;
+  memo: string | null;
+  org_name: string;
+  contact: { name: string; email: string | null; company: string | null } | null;
+  project_name: string | null;
+  lines: Array<{
+    description: string;
+    qty: string;
+    unit_price: string;
+    amount: string;
+    tax_rate: string | null;
+    tax_name: string | null;
+  }>;
+  totals: { subtotal: string; tax_total: string; total: string; paid: string; balance: string } | null;
+}
+
 // --- Bookkeeping (M12) ---
 export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense' | 'cogs';
 export type BalanceSide = 'debit' | 'credit';
@@ -118,6 +272,7 @@ export interface Project {
   name: string;
   description: string | null;
   client: string | null;
+  contact_id?: string | null; // FK to contacts since 0016; client text is legacy display
   location: string | null;
   project_type: string | null;
   status: ProjectStatus;
