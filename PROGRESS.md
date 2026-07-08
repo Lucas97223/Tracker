@@ -5,9 +5,9 @@
 ## Current state
 
 - **Phase:** 1 — Money in — **complete, awaiting user approval at the gate**
-- **Live deployment: user is running it BY HAND in the SQL editor.** Pre-flight revealed the live DB never received **0007/0008** (ledger engine was repo-only — RECON addendum #4). Hand-deploy order: **0007 → 0008 → 0011 → … → 0021** (13 files, one per run). `scripts/simulate-live-deploy.sh` rehearses this exact path and is green; deploy-only fixes landed in `27d4175`.
+- **Live deployment: DONE (2026-07-08).** Deployed via the Supabase Management API over HTTPS (`scripts/manage-deploy.py`, token-authenticated) after direct Postgres ports proved unreachable from this machine (suspected fail2ban from earlier bad-password attempts). Sequence 0007 → 0008 → 0011…0021, all 13 files first-pass clean. Pre-deploy JSON snapshot of all business data in `backups/20260708-154952/` (gitignored). Post-deploy verification: 1 org, ledger balanced, every entry period-stamped, 3 legacy invoices totaling exactly the old client_paid ($104,500), per-project ledger revenue == old client_paid to the cent, all 10 expenses mirrored. `supabase_migrations.schema_migrations` seeded with versions 0001–0021 for future CLI pushes.
 - GitHub push still pending auth (on hold per user).
-- **Next phase:** 2 — Tasks (after live deploy + gate approval).
+- **Next phase:** 2 — Tasks (pending gate approval; ESP decision open for reminder emails).
 
 ## Phase 1 gate summary (2026-07-08)
 
