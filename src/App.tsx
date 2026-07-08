@@ -12,6 +12,7 @@ import { HomePage } from './pages/HomePage';
 import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { PublicInvoicePage } from './pages/PublicInvoicePage';
+import { MyTasksPage } from './pages/MyTasksPage';
 import { LoadingScreen } from './components/LoadingScreen';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="years/:yearId" element={<YearPage />} />
         <Route path="projects/:projectId" element={<ProjectPage />} />
+        <Route path="my-tasks" element={<MyTasksPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="categories" element={<CategoriesPage />} />

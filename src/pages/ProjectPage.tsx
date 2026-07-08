@@ -7,6 +7,7 @@ import { usePayItemsForProject } from '../hooks/useTeam';
 import { useProjectPnL } from '../hooks/useReports';
 import { PayItemsCard } from '../components/team/PayItemsCard';
 import { InvoicesCard } from '../components/invoices/InvoicesCard';
+import { TasksPanel } from '../components/tasks/TasksPanel';
 import { useAuth } from '../providers/AuthProvider';
 import { formatMoney, sumMoney } from '../lib/money';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -191,6 +192,8 @@ export function ProjectPage() {
       <InvoicesCard project={p} canEdit={canEdit} isAdmin={isAdmin} />
 
       {projectId && <PayItemsCard projectId={projectId} canEdit={canEdit} isAdmin={isAdmin} />}
+
+      {projectId && <TasksPanel projectId={projectId} canEdit={canEdit} />}
 
       {p.collection_details && (
         <details className="card open:shadow-sm" open={false}>

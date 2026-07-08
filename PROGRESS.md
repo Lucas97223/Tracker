@@ -5,9 +5,28 @@
 ## Current state
 
 - **Phase:** 1 — Money in — **complete, awaiting user approval at the gate**
-- **Live deployment: DONE (2026-07-08).** Deployed via the Supabase Management API over HTTPS (`scripts/manage-deploy.py`, token-authenticated) after direct Postgres ports proved unreachable from this machine (suspected fail2ban from earlier bad-password attempts). Sequence 0007 → 0008 → 0011…0021, all 13 files first-pass clean. Pre-deploy JSON snapshot of all business data in `backups/20260708-154952/` (gitignored). Post-deploy verification: 1 org, ledger balanced, every entry period-stamped, 3 legacy invoices totaling exactly the old client_paid ($104,500), per-project ledger revenue == old client_paid to the cent, all 10 expenses mirrored. `supabase_migrations.schema_migrations` seeded with versions 0001–0021 for future CLI pushes.
-- GitHub push still pending auth (on hold per user).
-- **Next phase:** 2 — Tasks (pending gate approval; ESP decision open for reminder emails).
+- **Phase:** 2 — Tasks — **complete, at the gate.** Live database is at **0023** (Phase 2 schema deployed 2026-07-08 via `scripts/manage-deploy.py`, now migration-aware: it skips recorded versions and records each apply).
+- **GitHub: live.** `https://github.com/Lucas97223/Tracker` — device-flow OAuth stored in the macOS keychain; pushes work.
+- **Next phase:** 3 — Time (timer, timesheets, managerial labor memo (I4), unbilled→invoice with locks (I5)) → then the MVP gate.
+
+## Phase 2 gate summary (2026-07-08)
+
+**Shipped — schema (0022–0023, live):** task_sections; tasks (single assignee → team_members per D12, subtasks, status/priority/dates, sort_order); task_collaborators; task_comments via `add_task_comment` RPC (comment + @mention + assignee notifications in one transaction); url-based task_attachments; notifications with owner-only RLS; task templates v1 + depth-first `apply_task_template`. Contractor scoping per I6: `is_staffed_on`/`can_access_work` helpers; contractors read/work tasks only on staffed projects and read `v_contractor_projects` (work-safe columns only) — the projects table, and every money table/view, stays closed to them (suite 07 asserts each).
+
+**Shipped — app:** Tasks panel on ProjectPage with **List** (sections, quick-add, subtask counts) and **Board** (status columns, HTML5 drag persisting status + order — no new dependencies); task detail modal (meta editing, subtasks, comment thread with mention chips); **My Tasks** page (overdue/today/upcoming buckets, contractor-safe project names, inline detail); **notifications bell** with unread badge + mark-read; realtime invalidations for tasks/sections/comments/notifications; nav + routes.
+
+**Acceptance:**
+- [x] Task CRUD + subtasks; board drag persists order/status — suite 07 + UI
+- [x] My Tasks aggregates across projects (team-member identities → login)
+- [x] @mention notifies — suite 07
+- [x] Contractor: no invoices/payments/expenses/rates/P&L; only staffed projects/tasks — suite 07
+- [x] Applying a template creates its task tree (incl. nesting) — suite 07; save-as-template shipped too
+- [~] Two-browser realtime: pattern identical to the proven Phase 0.5 channel; **needs a logged-in two-browser check** (I still have no app credentials — 2-minute manual check on your side)
+- [x] 7/7 SQL suites, vitest 10/10, lint 0 errors, tsc clean, web bundle renders
+
+**Notes:** attachments are link-based (no storage buckets yet — spec allows; uploads can ride Phase 5's portal work). ESP decision still open (only blocks reminder *sending*).
+
+## Previous gate summaries
 
 ## Phase 1 gate summary (2026-07-08)
 

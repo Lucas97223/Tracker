@@ -232,6 +232,85 @@ export interface PublicInvoice {
   totals: { subtotal: string; tax_total: string; total: string; paid: string; balance: string } | null;
 }
 
+
+// --- Tasks (Phase 2) ---
+export type TaskStatus = 'todo' | 'in_progress' | 'done';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type NotificationKind = 'assigned' | 'mention' | 'comment';
+
+export interface TaskSection {
+  id: string;
+  org_id: string;
+  project_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Task {
+  id: string;
+  org_id: string;
+  project_id: string;
+  section_id: string | null;
+  parent_task_id: string | null;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assignee_id: string | null;
+  start_date: string | null;
+  due_date: string | null;
+  sort_order: number;
+  completed_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskComment {
+  id: string;
+  org_id: string;
+  task_id: string;
+  author_id: string | null;
+  body: string;
+  created_at: string;
+}
+
+export interface AppNotification {
+  id: string;
+  org_id: string;
+  recipient_id: string;
+  actor_id: string | null;
+  kind: NotificationKind;
+  task_id: string | null;
+  project_id: string | null;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface TaskTemplate {
+  id: string;
+  org_id: string;
+  name: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContractorProject {
+  id: string;
+  org_id: string;
+  name: string;
+  status: ProjectStatus;
+  project_type: string | null;
+  location: string | null;
+  start_date: string | null;
+  end_date: string | null;
+}
+
 // --- Bookkeeping (M12) ---
 export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense' | 'cogs';
 export type BalanceSide = 'debit' | 'credit';

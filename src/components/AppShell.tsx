@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import { ConflictDialog } from './ConflictDialog';
+import { NotificationsBell } from './tasks/NotificationsBell';
 
 export function AppShell() {
   const { profile, signOut, isAdmin, orgId } = useAuth();
@@ -23,6 +24,14 @@ export function AppShell() {
             Expense Tracker
           </Link>
           <nav className="hidden gap-1 md:flex" aria-label="Primary">
+            <NavLink
+              to="/my-tasks"
+              className={({ isActive }) =>
+                `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
+              }
+            >
+              My Tasks
+            </NavLink>
             <NavLink
               to="/dashboard"
               className={({ isActive }) =>
@@ -68,6 +77,7 @@ export function AppShell() {
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          <NotificationsBell />
           <SyncStatusBadge />
           <div className="hidden text-right md:block">
             <div className="font-medium text-slate-800">

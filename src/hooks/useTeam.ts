@@ -49,6 +49,27 @@ export function useApprovedPay() {
   });
 }
 
+export function useTeamMembers() {
+  const { isOnline } = useSyncContext();
+  return useQuery({
+    queryKey: [...teamKey, 'members'] as const,
+    enabled: isOnline,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('id, display_name, profile_id, is_active')
+        .order('display_name');
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        display_name: string;
+        profile_id: string | null;
+        is_active: boolean;
+      }>;
+    },
+  });
+}
+
 function invalidatePay(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: payItemsKey });
   qc.invalidateQueries({ queryKey: ['reports'] });

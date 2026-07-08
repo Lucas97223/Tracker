@@ -22,21 +22,11 @@ API = "https://api.supabase.com"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MIG = ROOT / "supabase" / "migrations"
 
-DEPLOY_ORDER = [
-    "0007_double_entry.sql",
-    "0008_backfill_journal.sql",
-    "0011_organizations.sql",
-    "0012_org_rls_rewrite.sql",
-    "0013_team_members.sql",
-    "0014_pay_items.sql",
-    "0015_rates_audit_coa.sql",
-    "0016_contacts.sql",
-    "0017_invoicing.sql",
-    "0018_payments.sql",
-    "0019_client_paid_rollup.sql",
-    "0020_vendors_years.sql",
-    "0021_public_invoice.sql",
-]
+# Every migration in filename order. `migrate` skips versions already
+# recorded in supabase_migrations.schema_migrations and records each apply,
+# so this stays a one-command deploy as phases land.
+DEPLOY_ORDER = sorted(p.name for p in (pathlib.Path(__file__).resolve().parent.parent
+                                       / "supabase" / "migrations").glob("0*.sql"))
 
 SNAPSHOT_TABLES = [
     "profiles", "years", "projects", "categories", "expenses",
@@ -143,17 +133,31 @@ def phase_snapshot():
 
 
 def phase_migrate():
+    query("""create schema if not exists supabase_migrations;
+             create table if not exists supabase_migrations.schema_migrations
+               (version text primary key, statements text[], name text)""")
+    rows = query("select version from supabase_migrations.schema_migrations")
+    done = {r["version"] for r in rows}
+
     applied = []
     for name in DEPLOY_ORDER:
+        version = name.split("_", 1)[0]
+        if version in done:
+            continue
         sql = (MIG / name).read_text()
         print(f"  applying {name} ({len(sql)} bytes)…", flush=True)
         try:
             query(sql)
-        except SystemExit as e:
-            print(f"\nSTOPPED at {name}. Applied so far: {applied or 'none'}")
+        except SystemExit:
+            print(f"\nSTOPPED at {name}. Applied this run: {applied or 'none'}")
             raise
+        pretty = name.split("_", 1)[1].removesuffix(".sql").replace("'", "''")
+        query("insert into supabase_migrations.schema_migrations (version, name) "
+              f"values ('{version}', '{pretty}') on conflict (version) do nothing")
         applied.append(name)
-    print(f"migrate: all {len(applied)} files applied")
+    print(f"migrate: {len(applied)} new file(s) applied "
+          f"({len(done)} already recorded)" if applied else
+          f"migrate: nothing to do ({len(done)} versions already applied)")
 
 
 def phase_verify():
