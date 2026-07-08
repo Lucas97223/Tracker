@@ -1,5 +1,10 @@
 # RECON.md — Phase R Reconnaissance Report
 
+> **Addendum (2026-07-08, verified on a live Postgres 17 shadow DB during Phase 0.5):**
+> 1. Defect #1 (ambiguous `parent_id`, 42702) **confirmed empirically** — category creation via the app fails on any clean 0001–0010 chain. Fixed in 0012.
+> 2. Defect #2 (views bypass RLS) **confirmed empirically** — an `is_active=false` user read `v_year_rollup` rows. Fixed in 0012 (`security_invoker`).
+> 3. **New finding, worse than §4 reported:** the Photographer-Pay auto-sync is *hard-broken* on a clean chain, not merely "posts $0 immediately". Its $0 expense insert produces journal lines with debit=0 AND credit=0, violating 0007's "never neither" check — which aborts the whole project INSERT/UPDATE that added the photographer. It can only ever have worked on a database where 0010 predated 0008's triggers. The approved draft-pay design (D-C, migration 0014) replaces it entirely.
+
 **Date:** 2026-07-07
 **Method:** Full read of all 10 migrations, seed files, Electron main/preload/db, every hook/lib/provider, pages, CI workflow, and configs. The **live Supabase database was not queried** — migrations are applied by hand via the SQL editor (per README), so live-schema drift is possible. A `db diff` against the live project is a recommended first step of Phase 0.5.
 
