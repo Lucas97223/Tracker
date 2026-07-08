@@ -1,0 +1,63 @@
+# Builds Windows and macOS installers on every git tag push (e.g. `v0.1.0`).
+# The runners produce artifacts you can download from the GitHub Actions UI
+# or attach to a Release. No code signing — the apps are unsigned. Mac users
+# will need to right-click → Open the first time (Gatekeeper warning); see
+# the README "Running unsigned Mac builds" section.
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Vite build
+        env:
+          # Inject the Supabase credentials at build time. Set these in
+          # repo Settings → Secrets and variables → Actions.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_BASE_CURRENCY: USD
+          VITE_BASE_LOCALE: en-US
+        run: npx vite build
+
+      - name: electron-builder (Windows)
+        if: matrix.os == 'windows-latest'
+        run: npx electron-builder --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: electron-builder (macOS)
+        if: matrix.os == 'macos-latest'
+        run: npx electron-builder --mac
+        env:
+          # No CSC_LINK / APPLE_ID set → build unsigned. Apps still run after
+          # right-click → Open. Add signing identities here when you have them.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: ignore
