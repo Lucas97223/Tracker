@@ -57,7 +57,13 @@ select tests.assert((select count(*) = 1 from years),          'B sees exactly o
 select tests.assert((select count(*) = 1 from projects),       'B sees only its project');
 select tests.assert((select count(*) = 0 from expenses),       'B sees no A expenses');
 select tests.assert((select count(*) = 0 from pay_items),      'B sees no A pay items');
-select tests.assert((select count(*) = 0 from team_members),   'B sees no A team members');
+-- Since 0026 every non-viewer member has an auto roster identity, so B sees
+-- exactly one team member: themself, in their own org — never A's people.
+select tests.assert(
+  (select count(*) = 1 from team_members)
+  and (select count(*) = 0 from team_members
+       where org_id <> (select default_org_id from profiles where id = auth.uid())),
+  'B sees only their own org''s roster (their auto identity)');
 select tests.assert((select count(*) = 0 from member_rates),   'B sees no A rates');
 select tests.assert((select count(*) = 0 from journal_entries),'B sees no A journal entries');
 select tests.assert((select count(*) = 0 from audit_log where org_id <> (select default_org_id from profiles where id = auth.uid())), 'B sees no foreign audit rows');

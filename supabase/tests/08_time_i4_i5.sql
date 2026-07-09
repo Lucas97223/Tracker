@@ -8,7 +8,6 @@
 select tests.make_user('studio@t.io') as owner_u \gset
 select tests.make_user('fred@t.io')   as fred_u  \gset
 update profiles set is_active = true where id = :'fred_u'::uuid;
-update org_members set role = 'contractor' where user_id = :'fred_u'::uuid;
 
 -- ---------- fixtures ----------
 select tests.become(:'owner_u');
@@ -18,7 +17,17 @@ insert into projects (name, start_date, contact_id, photographers)
   select 'Retainer', '2026-10-01', id, array['Fred Lance'] from contacts;
 insert into projects (name, start_date) values ('Unstaffed Project', '2026-10-02');
 reset role;
-update team_members set profile_id = :'fred_u'::uuid where display_name = 'Fred Lance';
+-- The supported linking flow: put the person's email on their roster row,
+-- THEN promote — the 0026 identity trigger claims the row instead of
+-- creating a duplicate.
+update team_members set email = 'fred@t.io' where display_name = 'Fred Lance';
+update org_members set role = 'contractor' where user_id = :'fred_u'::uuid;
+select tests.assert(
+  (select count(*) = 1 from team_members where profile_id = :'fred_u'::uuid),
+  'promotion claimed the roster row — exactly one identity for Fred');
+select tests.assert(
+  (select display_name = 'Fred Lance' from team_members where profile_id = :'fred_u'::uuid),
+  'the claimed row is the photographer roster row');
 select tests.become(:'owner_u');
 set role authenticated;
 insert into member_rates (team_member_id, cost_rate, bill_rate)

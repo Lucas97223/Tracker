@@ -98,11 +98,15 @@ select tests.assert(
   (select sum(debit) = sum(credit) from journal_lines), '0008: ledger balanced');
 SQL
 
-for f in 0011_organizations 0012_org_rls_rewrite 0013_team_members 0014_pay_items \
-         0015_rates_audit_coa 0016_contacts 0017_invoicing 0018_payments \
-         0019_client_paid_rollup 0020_vendors_years 0021_public_invoice; do
-  echo "   $f"
-  run "$MIG/$f.sql"
+# Everything ≥ 0011, dynamically — a hardcoded list here went stale once and
+# silently skipped new migrations.
+for f in "$MIG"/00*.sql; do
+  base="$(basename "$f")"
+  ver="${base%%_*}"
+  if [[ "$ver" > "0010" ]]; then
+    echo "   $base"
+    run "$f"
+  fi
 done
 
 echo "── post-deploy verification (mirrors the SQL-editor checklist)"
@@ -112,7 +116,8 @@ echo "── post-deploy verification (mirrors the SQL-editor checklist)"
 select tests.assert((select count(*) = 1 from organizations), 'one default org');
 select tests.assert((select count(*) = 1 from org_members where role = 'owner'), 'owner backfilled');
 select tests.assert((select count(*) = 2 from accounts where code in ('5100','4800')), '5100 + 4800 provisioned');
-select tests.assert((select count(*) = 3 from team_members), 'photographers[] → 3 team members');
+-- 3 photographers + the owner's auto identity (0026)
+select tests.assert((select count(*) = 4 from team_members), 'photographers[] + owner identity → 4 team members');
 select tests.assert((select count(*) = 4 from project_members), '4 project memberships');
 -- the 3 remaining $0 placeholders became draft pay items; expense rows gone
 select tests.assert((select count(*) = 3 from pay_items where status = 'draft' and amount = 0),
