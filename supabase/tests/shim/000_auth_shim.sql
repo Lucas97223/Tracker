@@ -34,7 +34,7 @@ alter default privileges in schema public grant execute on functions to authenti
 -- ---------- test helpers ----------
 
 create schema if not exists tests;
-grant usage on schema tests to authenticated;
+grant usage on schema tests to authenticated, anon;
 
 -- Simulate signing in: point auth.uid() at the given user. Pair with
 -- `set role authenticated;` in the test script so RLS actually applies.
@@ -51,7 +51,7 @@ begin
     raise exception 'ASSERT FAILED: %', p_msg;
   end if;
 end $$;
-grant execute on function tests.assert(boolean, text) to authenticated;
+grant execute on function tests.assert(boolean, text) to authenticated, anon;
 
 -- Create an auth user (fires the profile-bootstrap trigger) and return its id.
 create or replace function tests.make_user(p_email text)
