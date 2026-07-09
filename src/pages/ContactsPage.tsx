@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useContacts, useCreateContact, useUpdateContact } from '../hooks/useContacts';
+import { useContactActivity, useMergeContacts } from '../hooks/useCrm';
 import { useAuth } from '../providers/AuthProvider';
 import { useToast } from '../providers/ToastProvider';
 import { Modal } from '../components/Modal';
@@ -135,6 +136,8 @@ function ContactModal({
             onChange={(e) => set('notes', e.target.value)}
           />
         </label>
+        {contact && <ContactExtras contact={contact} onClose={onClose} />}
+
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" className="btn-ghost" onClick={onClose}>
             Cancel
@@ -150,6 +153,91 @@ function ContactModal({
         </div>
       </div>
     </Modal>
+  );
+}
+
+const ACTIVITY_LABELS: Record<string, string> = {
+  deal_created: '💼 Deal opened',
+  deal_won: '🎉 Deal won',
+  deal_lost: '✖ Deal lost',
+  invoice_created: '🧾 Invoice drafted',
+  invoice_sent: '🧾 Invoice sent',
+  payment_received: '💵 Payment received',
+  project_created: '📁 Project created',
+  form_response: '📨 Form inquiry',
+};
+
+function ContactExtras({ contact, onClose }: { contact: Contact; onClose: () => void }) {
+  const activity = useContactActivity(contact.id);
+  const contacts = useContacts(true);
+  const merge = useMergeContacts();
+  const { isAdmin } = useAuth();
+  const toast = useToast();
+  const [dupeId, setDupeId] = useState('');
+
+  return (
+    <div className="space-y-3 border-t border-slate-100 pt-3">
+      <div>
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Activity</p>
+        {(activity.data ?? []).length === 0 ? (
+          <p className="text-sm text-slate-400">Nothing yet — deals, invoices and payments will show here.</p>
+        ) : (
+          <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
+            {(activity.data ?? []).map((a) => (
+              <li key={`${a.kind}-${a.ref_id}-${a.happened_at}`} className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">
+                  {new Date(a.happened_at).toLocaleDateString()}
+                </span>
+                <span className="text-slate-700">
+                  {ACTIVITY_LABELS[a.kind] ?? a.kind} — {a.summary}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {isAdmin && (
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Merge a duplicate into this contact
+          </p>
+          <div className="flex gap-2">
+            <select
+              className="input min-w-0 flex-1"
+              value={dupeId}
+              onChange={(e) => setDupeId(e.target.value)}
+            >
+              <option value="">Pick the duplicate…</option>
+              {(contacts.data ?? [])
+                .filter((c) => c.id !== contact.id && c.lifecycle !== 'archived')
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.email ? ` (${c.email})` : ''}
+                  </option>
+                ))}
+            </select>
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={!dupeId || merge.isPending}
+              onClick={() =>
+                void merge
+                  .mutateAsync({ keep_id: contact.id, dupe_id: dupeId })
+                  .then(() => {
+                    toast.success('Merged — history moved to this contact');
+                    onClose();
+                  })
+                  .catch((e) => toast.error(e instanceof Error ? e.message : 'Merge failed'))
+              }
+            >
+              Merge
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

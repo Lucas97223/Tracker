@@ -6,6 +6,7 @@ import { SyncStatusBadge } from './SyncStatusBadge';
 import { ConflictDialog } from './ConflictDialog';
 import { NotificationsBell } from './tasks/NotificationsBell';
 import { TimerWidget } from './time/TimerWidget';
+import { SearchBox } from './crm/SearchBox';
 
 export function AppShell() {
   const { profile, signOut, isAdmin, orgId } = useAuth();
@@ -58,6 +59,22 @@ export function AppShell() {
               Contacts
             </NavLink>
             <NavLink
+              to="/pipeline"
+              className={({ isActive }) =>
+                `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
+              }
+            >
+              Pipeline
+            </NavLink>
+            <NavLink
+              to="/forms"
+              className={({ isActive }) =>
+                `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
+              }
+            >
+              Forms
+            </NavLink>
+            <NavLink
               to="/reports"
               className={({ isActive }) =>
                 `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
@@ -75,6 +92,16 @@ export function AppShell() {
             </NavLink>
             {isAdmin && (
               <NavLink
+                to="/team"
+                className={({ isActive }) =>
+                  `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
+                }
+              >
+                Team
+              </NavLink>
+            )}
+            {isAdmin && (
+              <NavLink
                 to="/admin"
                 className={({ isActive }) =>
                   `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
@@ -86,6 +113,7 @@ export function AppShell() {
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          <SearchBox />
           <TimerWidget />
           <NotificationsBell />
           <SyncStatusBadge />

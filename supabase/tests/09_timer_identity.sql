@@ -54,5 +54,43 @@ select tests.assert(
   'claimed identity can run the timer');
 select stop_timer();
 
+-- ---------- merge_team_members (0030): the Afrik ⇄ armandoafrik case ----------
+-- Plant the production shape: an unlinked roster name AND a linked auto
+-- identity for the same human, each carrying references.
+select tests.become(:'owner_u');
+set role authenticated;
+insert into team_members (display_name) values ('Rik');   -- roster name, unlinked
+insert into projects (name, start_date, photographers)
+  values ('Merge Gig', '2026-12-01', array['Rik']);        -- staffing + draft pay on 'Rik'
+reset role;
+select set_config('tests.rik', (select id::text from team_members where display_name = 'Rik'), false);
+select set_config('tests.owner_tm', (
+  select id::text from team_members where profile_id = :'owner_u'::uuid), false);
+-- the linked identity logged time meanwhile
+insert into time_entries (org_id, project_id, team_member_id, started_at, minutes)
+select p.org_id, p.id, current_setting('tests.owner_tm')::uuid, now() - interval '2 hours', 60
+from projects p where p.name = 'Merge Gig';
+
+select tests.become(:'owner_u');
+set role authenticated;
+select merge_team_members(current_setting('tests.rik')::uuid,
+                          current_setting('tests.owner_tm')::uuid);
+
+select tests.assert(
+  (select profile_id = :'owner_u'::uuid from team_members
+    where id = current_setting('tests.rik')::uuid),
+  'merge: keeper inherits the login link');
+select tests.assert(
+  (select count(*) = 0 from team_members where id = current_setting('tests.owner_tm')::uuid),
+  'merge: duplicate row gone');
+select tests.assert(
+  (select count(*) = 1 from time_entries
+    where team_member_id = current_setting('tests.rik')::uuid and minutes = 60),
+  'merge: time entries repointed');
+select tests.assert(
+  (select count(*) >= 1 from pay_items
+    where team_member_id = current_setting('tests.rik')::uuid),
+  'merge: pay items repointed');
+
 reset role;
 select '09_timer_identity: PASS';

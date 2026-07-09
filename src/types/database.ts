@@ -233,6 +233,9 @@ export interface PublicInvoice {
 }
 
 
+// --- CRM (Phase 4) ---
+export type DealStatus = 'open' | 'won' | 'lost';
+
 // --- Tasks (Phase 2) ---
 export type TaskStatus = 'todo' | 'in_progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';

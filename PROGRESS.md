@@ -5,9 +5,22 @@
 ## Current state
 
 - **Phase:** 1 — Money in — **complete, awaiting user approval at the gate**
-- **Phase:** 3 — Time — **complete. THE MVP GATE IS REACHED.** Live database at **0025**; GitHub current.
-- **MVP definition of done (spec §7):** a user can run a project from contact → invoice → payment → tasks → time and see a true P&L where labor appears exactly once, revenue is ledger-backed, and nothing was entered twice. All of it is deployed and covered by suites 01–08.
-- **Next:** user validates with real users (demo script below), then Phase 4 — CRM front (deals/pipeline, activity timeline, lead forms, dedupe, search) on approval.
+- **Phase:** 4 — CRM front — **complete, at the gate.** Live database at **0030**; GitHub current. (MVP gate passed 2026-07-09 after user validation; one field bug found — timer identity — fixed as 0026 + suite 09.)
+- **Next phase:** 5 — Sell & onboard (catalog, proposals with margin guardrail, embedded e-sign, scheduler, client portal, **Stripe Connect**, the one-click Win action, Dubsado importer). Needs decisions at kickoff: Stripe account, e-sign provider, ESP key.
+
+## Phase 4 gate summary (2026-07-09)
+
+**Schema (0027–0030, live):** pipeline_stages (seeded per org + provisioning); deals — `estimated_value` is **forecast-only** (I2: suite 10 proves it reaches no ledger surface), win promotes contact lead→client; public lead forms (share token, anon `get_public_form`/`submit_lead_form`, contact dedupe by email per I3, deal in first stage, required-field + length + daily-cap guards, inactive→invisible); `v_contact_activity` (deals/invoices/payments/projects/form responses, RLS-invoker); `merge_contacts` (repoint + coalesce + archive, audited); `search_all` FTS (contacts/projects/tasks/deals + invoice #, SECURITY INVOKER so org-scoped by construction) + GIN indexes; `merge_team_members` (0030 — repoints time/pay/tasks/staffing/rates, inherits login; used in production to merge Afrik ⇄ armandoafrik, roster now: Afrik ✓linked, Conor, Lucas ✓linked).
+
+**App:** Pipeline board (stage columns with per-stage forecast totals clearly labeled, drag deals, new-deal modal with contact quick-create, win/lose/reopen, won-lost drawer); contact modal gains an **activity timeline** + admin **merge picker**; **Forms** page (builder with field kinds/required, live/off toggle, copy public link, responses viewer) + anonymous form page at `#/f/<token>` (verified rendering against production); **header search** (⌘K, all entity types); **Team & Rates** page (rename roster, set emails for future login-claiming, admin-only cost/bill rates, merge duplicates) — closes the Phase 3 rates-UI gap.
+
+**Acceptance:** suite 10 (pipeline moves, I2 forecast isolation, anon submission + dedupe + caps + inactive, merge repointing, org-scoped search) + suites 01–09 unchanged; tsc/lint/vitest/build green; REST smokes on every new embed/RPC (deals→contacts checked for the PGRST201 class — clean); live deploy verified.
+
+**Deferred:** deal→project link UI is manual (the one-click Win action is Phase 5 by design); form `select` field kind exists in schema, builder offers the common five; reminder emails still await an ESP key.
+
+## MVP gate (passed)
+
+- **Definition of done (spec §7):** contact → invoice → payment → tasks → time with true P&L — validated by Lucas on production, 2026-07-09.
 
 ## Phase 3 gate summary (2026-07-09)
 

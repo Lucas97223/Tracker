@@ -112,6 +112,13 @@ export function useRealtimeSync(orgId?: string | null) {
         qc.invalidateQueries({ queryKey: ['time'] });
         qc.invalidateQueries({ queryKey: ['reports'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deals' }, () => {
+        qc.invalidateQueries({ queryKey: ['crm'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'form_responses' }, () => {
+        qc.invalidateQueries({ queryKey: ['crm'] });
+        qc.invalidateQueries({ queryKey: ['contacts'] });
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
