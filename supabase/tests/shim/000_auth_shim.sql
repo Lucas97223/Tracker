@@ -62,3 +62,14 @@ begin
   insert into auth.users (id, email) values (v_id, p_email);
   return v_id;
 end $$;
+
+-- A PORTAL signup (magic-link client): flagged in metadata like the app does.
+create or replace function tests.make_portal_user(p_email text)
+returns uuid language plpgsql as $$
+declare
+  v_id uuid := gen_random_uuid();
+begin
+  insert into auth.users (id, email, raw_user_meta_data)
+  values (v_id, p_email, '{"portal": "true"}'::jsonb);
+  return v_id;
+end $$;

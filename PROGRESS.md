@@ -5,7 +5,8 @@
 ## Current state
 
 - **Phase:** 1 — Money in — **complete, awaiting user approval at the gate**
-- **Phase:** 5 — Sell & onboard — **core complete, at the gate.** Live database at **0035**; GitHub current. Credential-gated integrations deliberately seamed for later (user gathering credentials).
+- **Phase:** 5 — Sell & onboard — **core + portal complete, at the gate.** Live database at **0036**; GitHub current. Credential-gated integrations deliberately seamed for later (user gathering credentials).
+- **Client portal shipped (0036):** magic-link sign-in at `#/portal` (Supabase built-in mailer, no key). Portal logins are inactive, org-less, roster-less profiles linked to contacts by verified email (`contact_users`); they read exclusively through contact-scoped definer views (`v_portal_invoices/projects/proposals/contracts`) — base tables and staff views provably closed (suite 12). Nested-view lesson recorded: definer portal views must compute from base tables, not from invoker views (whose RLS re-applies as the portal user). **Pen-test before GA** per spec.
 - **Next:** on gate approval → remaining Phase 5 integrations as credentials arrive (Stripe Connect → `processor_events` + hosted checkout on invoices; e-sign provider into `signature_events`; Resend for reminders; client portal via Supabase magic links needs no key; Dubsado importer needs an export file) → then Phase 6.
 
 ## Phase 5 gate summary (2026-07-09)

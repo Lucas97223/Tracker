@@ -25,6 +25,7 @@ import { SchedulerPage } from './pages/SchedulerPage';
 import { PublicProposalPage } from './pages/PublicProposalPage';
 import { PublicContractPage } from './pages/PublicContractPage';
 import { PublicBookingPage } from './pages/PublicBookingPage';
+import { PortalPage } from './pages/PortalPage';
 import { LoadingScreen } from './components/LoadingScreen';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -64,6 +65,8 @@ export default function App() {
       <Route path="/p/:token" element={<PublicProposalPage />} />
       <Route path="/c/:token" element={<PublicContractPage />} />
       <Route path="/book/:token" element={<PublicBookingPage />} />
+      {/* Client portal: magic-link auth, contact-scoped data (no staff auth). */}
+      <Route path="/portal" element={<PortalPage />} />
       <Route
         path="/"
         element={
