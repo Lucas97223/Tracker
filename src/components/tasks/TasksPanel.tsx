@@ -72,7 +72,7 @@ export function TasksPanel({
   projectId: string;
   canEdit: boolean;
 }) {
-  const { data } = useProjectTasks(projectId);
+  const { data, error: tasksError } = useProjectTasks(projectId);
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const createSection = useCreateSection();
@@ -191,6 +191,12 @@ export function TasksPanel({
           )}
         </div>
       </header>
+
+      {tasksError && (
+        <p className="border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-700">
+          Tasks failed to load: {tasksError instanceof Error ? tasksError.message : 'unknown error'}
+        </p>
+      )}
 
       {view === 'list' ? (
         <div className="divide-y divide-slate-100">

@@ -35,7 +35,9 @@ export function useProjectTasks(projectId: string | undefined) {
       const [tasksRes, sectionsRes] = await Promise.all([
         supabase
           .from('tasks')
-          .select('*, assignee:team_members(display_name)')
+          // tasks↔team_members has two paths (assignee FK + collaborators
+          // junction); the embed must name the FK or PostgREST returns 300.
+          .select('*, assignee:team_members!tasks_assignee_id_fkey(display_name)')
           .eq('project_id', projectId)
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
@@ -72,7 +74,7 @@ export function useMyTasks() {
       if (ids.length === 0) return [] as TaskWithAssignee[];
       const { data, error } = await supabase
         .from('tasks')
-        .select('*, assignee:team_members(display_name)')
+        .select('*, assignee:team_members!tasks_assignee_id_fkey(display_name)')
         .in('assignee_id', ids)
         .neq('status', 'done')
         .order('due_date', { ascending: true, nullsFirst: false });
