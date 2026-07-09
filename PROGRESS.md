@@ -5,8 +5,20 @@
 ## Current state
 
 - **Phase:** 1 — Money in — **complete, awaiting user approval at the gate**
-- **Phase:** 4 — CRM front — **complete, at the gate.** Live database at **0030**; GitHub current. (MVP gate passed 2026-07-09 after user validation; one field bug found — timer identity — fixed as 0026 + suite 09.)
-- **Next phase:** 5 — Sell & onboard (catalog, proposals with margin guardrail, embedded e-sign, scheduler, client portal, **Stripe Connect**, the one-click Win action, Dubsado importer). Needs decisions at kickoff: Stripe account, e-sign provider, ESP key.
+- **Phase:** 5 — Sell & onboard — **core complete, at the gate.** Live database at **0035**; GitHub current. Credential-gated integrations deliberately seamed for later (user gathering credentials).
+- **Next:** on gate approval → remaining Phase 5 integrations as credentials arrive (Stripe Connect → `processor_events` + hosted checkout on invoices; e-sign provider into `signature_events`; Resend for reminders; client portal via Supabase magic links needs no key; Dubsado importer needs an export file) → then Phase 6.
+
+## Phase 5 gate summary (2026-07-09)
+
+**Schema (0031–0035, live):** catalog_items (price + estimated cost/hours → quote-to-actual); proposals + lines (catalog snapshots, freeze-after-sent, `v_proposal_totals`, `v_project_type_costs` guardrail baseline); **the one-click Win** — `accept_proposal` (anon, evidence-capturing) runs `win_proposal` in the same transaction: project (+task template) + generated contract (versioned, sha256-hashed, sent) + deposit invoice (sent, deposit_pct of total) + deal won (created if standalone) + contact → client; idempotent via artifact stamps; `unwin_proposal` compensates and refuses once payments exist; `win_deal_manual` for offline acceptances. *Spec deviation, noted:* implemented as a definer RPC rather than an Edge Function — same single-transaction guarantee, no new runtime, matches every other money path (I7). Contracts: immutable versions + `signature_events` with 'internal' click-to-sign evidence (doc hash, signer, IP/UA, timestamp) — provider slot ready per D6, legality never in-house. Scheduler: appointment types, weekly availability, anon slot computation, bookings with **range-exclusion double-book protection**, booking → lead contact.
+
+**App:** Sales ▾ nav cluster (Proposals, Catalog, Contracts, Scheduler, Lead forms); Catalog page; proposal builder with catalog picker, open-deal linking, deposit %, task-template-on-win, and the **margin guardrail chip** (estimated margin + warning when the quote sits below the historical average real cost for that project type); public proposal page with Accept-runs-the-Win; contract editor (dependency-free markdown-subset rendering) + public signing page; scheduler admin (types, hours, bookings w/ cancel) + public booking page with taken-slot race handling.
+
+**Verified:** 11/11 SQL suites (suite 11: snapshots, full Win cascade incl. template + deposit math, idempotency, compensation + refuse-after-payment, signing freeze + evidence, slot computation, double-book rejection); tsc/lint/vitest/build green; pinned embeds smoke-tested on production (PGRST201 class); all three public pages render against production anonymously.
+
+**Deferred within Phase 5 (each waits on one input):** Stripe Connect (account/keys), provider e-sign (provider choice), reminder emails (Resend key), client portal (buildable next — magic links need no external key; pen-test before GA per spec), Dubsado importer (needs a real export). Deposit invoices are untaxed by design (prepayment; tax truth rides the final invoice) — flagged for accounting review.
+
+## Previous gate summaries (4)
 
 ## Phase 4 gate summary (2026-07-09)
 

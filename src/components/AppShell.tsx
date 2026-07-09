@@ -7,6 +7,52 @@ import { ConflictDialog } from './ConflictDialog';
 import { NotificationsBell } from './tasks/NotificationsBell';
 import { TimerWidget } from './time/TimerWidget';
 import { SearchBox } from './crm/SearchBox';
+import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+
+const SALES_LINKS = [
+  { to: '/proposals', label: 'Proposals' },
+  { to: '/catalog', label: 'Catalog' },
+  { to: '/contracts', label: 'Contracts' },
+  { to: '/scheduler', label: 'Scheduler' },
+  { to: '/forms', label: 'Lead forms' },
+];
+
+function SalesMenu() {
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  const active = SALES_LINKS.some((l) => location.pathname.startsWith(l.to));
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className={`rounded px-2.5 py-1 text-sm ${active ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        Sales ▾
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
+          <div className="absolute left-0 z-40 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-xl">
+            {SALES_LINKS.map((l) => (
+              <NavLink
+                key={l.to}
+                to={l.to}
+                className={({ isActive }) =>
+                  `block px-3 py-1.5 text-sm ${isActive ? 'bg-slate-50 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`
+                }
+                onClick={() => setOpen(false)}
+              >
+                {l.label}
+              </NavLink>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function AppShell() {
   const { profile, signOut, isAdmin, orgId } = useAuth();
@@ -66,14 +112,7 @@ export function AppShell() {
             >
               Pipeline
             </NavLink>
-            <NavLink
-              to="/forms"
-              className={({ isActive }) =>
-                `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
-              }
-            >
-              Forms
-            </NavLink>
+            <SalesMenu />
             <NavLink
               to="/reports"
               className={({ isActive }) =>

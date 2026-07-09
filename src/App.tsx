@@ -18,6 +18,13 @@ import { PipelinePage } from './pages/PipelinePage';
 import { FormsPage } from './pages/FormsPage';
 import { PublicFormPage } from './pages/PublicFormPage';
 import { TeamPage } from './pages/TeamPage';
+import { CatalogPage } from './pages/CatalogPage';
+import { ProposalsPage } from './pages/ProposalsPage';
+import { ContractsPage } from './pages/ContractsPage';
+import { SchedulerPage } from './pages/SchedulerPage';
+import { PublicProposalPage } from './pages/PublicProposalPage';
+import { PublicContractPage } from './pages/PublicContractPage';
+import { PublicBookingPage } from './pages/PublicBookingPage';
 import { LoadingScreen } from './components/LoadingScreen';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -54,6 +61,9 @@ export default function App() {
       <Route path="/share/invoice/:token" element={<PublicInvoicePage />} />
       {/* Public lead-capture form (no auth). */}
       <Route path="/f/:token" element={<PublicFormPage />} />
+      <Route path="/p/:token" element={<PublicProposalPage />} />
+      <Route path="/c/:token" element={<PublicContractPage />} />
+      <Route path="/book/:token" element={<PublicBookingPage />} />
       <Route
         path="/"
         element={
@@ -70,6 +80,10 @@ export default function App() {
         <Route path="timesheet" element={<TimesheetPage />} />
         <Route path="pipeline" element={<PipelinePage />} />
         <Route path="forms" element={<FormsPage />} />
+        <Route path="catalog" element={<CatalogPage />} />
+        <Route path="proposals" element={<ProposalsPage />} />
+        <Route path="contracts" element={<ContractsPage />} />
+        <Route path="scheduler" element={<SchedulerPage />} />
         <Route
           path="team"
           element={
