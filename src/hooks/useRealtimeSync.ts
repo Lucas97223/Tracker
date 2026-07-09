@@ -108,6 +108,10 @@ export function useRealtimeSync(orgId?: string | null) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
         qc.invalidateQueries({ queryKey: ['notifications'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entries' }, () => {
+        qc.invalidateQueries({ queryKey: ['time'] });
+        qc.invalidateQueries({ queryKey: ['reports'] });
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

@@ -8,6 +8,7 @@ import {
   type InvoiceWithDetails,
 } from '../../hooks/useInvoices';
 import { CreateInvoiceModal } from './CreateInvoiceModal';
+import { AddUnbilledModal } from './AddUnbilledModal';
 import { Modal } from '../Modal';
 import { useToast } from '../../providers/ToastProvider';
 import { formatMoney } from '../../lib/money';
@@ -126,6 +127,7 @@ function InvoiceRow({
 }) {
   const [open, setOpen] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [billing, setBilling] = useState(false);
   const send = useSendInvoice();
   const voidInvoice = useVoidInvoice();
   const voidPayment = useVoidPayment();
@@ -248,6 +250,11 @@ function InvoiceRow({
           )}
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-2">
+            {canEdit && invoice.status === 'draft' && invoice.project_id && (
+              <button type="button" className="btn-ghost" onClick={() => setBilling(true)}>
+                Add unbilled work
+              </button>
+            )}
             {canEdit && invoice.status === 'draft' && (
               <button type="button" className="btn-primary" onClick={() => void handleSend()}>
                 Mark sent
@@ -280,6 +287,14 @@ function InvoiceRow({
       )}
 
       {paying && <RecordPaymentModal invoice={invoice} onClose={() => setPaying(false)} />}
+      {billing && invoice.project_id && (
+        <AddUnbilledModal
+          invoiceId={invoice.id}
+          invoiceNumber={invoice.number}
+          projectId={invoice.project_id}
+          onClose={() => setBilling(false)}
+        />
+      )}
     </li>
   );
 }

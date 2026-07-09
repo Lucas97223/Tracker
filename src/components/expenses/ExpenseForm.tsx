@@ -18,6 +18,7 @@ const schema = z.object({
   receipt_url: z.string().url('Must be a URL').optional().or(z.literal('')),
   notes: z.string().optional(),
   person_name: z.string().optional(),
+  billable: z.boolean().default(false),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -73,6 +74,7 @@ export function ExpenseForm({ project, mode, expense, onDone }: Props) {
       receipt_url: expense?.receipt_url ?? '',
       notes: expense?.notes ?? '',
       person_name: expense?.person_name ?? '',
+      billable: expense?.billable ?? false,
     },
   });
 
@@ -101,6 +103,7 @@ export function ExpenseForm({ project, mode, expense, onDone }: Props) {
           receipt_url: values.receipt_url || null,
           notes: values.notes || null,
           person_name: values.person_name?.trim() || null,
+          billable: values.billable,
         });
         toast.success('Expense added');
       } else if (expense) {
@@ -116,6 +119,7 @@ export function ExpenseForm({ project, mode, expense, onDone }: Props) {
           receipt_url: values.receipt_url || null,
           notes: values.notes || null,
           person_name: values.person_name?.trim() || null,
+          billable: values.billable,
         });
         toast.success('Expense updated');
       }
@@ -240,6 +244,19 @@ export function ExpenseForm({ project, mode, expense, onDone }: Props) {
         <div className="col-span-2">
           <label className="label">Notes</label>
           <textarea className="input" rows={2} {...register('notes')} />
+        </div>
+        <div className="col-span-2">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              disabled={expense?.invoiced_lock}
+              {...register('billable')}
+            />
+            Billable to client
+            {expense?.invoiced_lock && (
+              <span className="badge bg-amber-100 text-amber-800">on an invoice — locked</span>
+            )}
+          </label>
         </div>
       </div>
       <div className="flex justify-end gap-2 pt-2">

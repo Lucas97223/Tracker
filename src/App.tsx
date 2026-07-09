@@ -13,6 +13,7 @@ import { ContactsPage } from './pages/ContactsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { PublicInvoicePage } from './pages/PublicInvoicePage';
 import { MyTasksPage } from './pages/MyTasksPage';
+import { TimesheetPage } from './pages/TimesheetPage';
 import { LoadingScreen } from './components/LoadingScreen';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="years/:yearId" element={<YearPage />} />
         <Route path="projects/:projectId" element={<ProjectPage />} />
         <Route path="my-tasks" element={<MyTasksPage />} />
+        <Route path="timesheet" element={<TimesheetPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="categories" element={<CategoriesPage />} />

@@ -43,6 +43,7 @@ export interface ExpenseInput {
   notes?: string | null;
   currency?: string;
   person_name?: string | null;
+  billable?: boolean;
 }
 
 export function useCreateExpense() {

@@ -45,6 +45,9 @@ export function ReportsPage() {
         <header className="border-b border-slate-100 px-4 py-2">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Project P&L (ledger-backed)
+            <span className="ml-2 normal-case text-slate-400">
+              memo columns are managerial — never posted to the ledger
+            </span>
           </h2>
         </header>
         {pnlRows.length === 0 ? (
@@ -59,6 +62,9 @@ export function ReportsPage() {
                   <th className="px-4 py-2 text-right">Team pay (COGS)</th>
                   <th className="px-4 py-2 text-right">Expenses</th>
                   <th className="px-4 py-2 text-right">Net margin</th>
+                  <th className="px-4 py-2 text-right text-slate-400">Hours (memo)</th>
+                  <th className="px-4 py-2 text-right text-slate-400">Labor cost (memo)</th>
+                  <th className="px-4 py-2 text-right text-slate-400">Eff. $/h</th>
                 </tr>
               </thead>
               <tbody>
@@ -76,6 +82,15 @@ export function ReportsPage() {
                       }`}
                     >
                       {formatMoney(r.net_margin)}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-slate-400">
+                      {r.logged_minutes > 0 ? (r.logged_minutes / 60).toFixed(1) : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-slate-400">
+                      {Number(r.labor_memo_cost) > 0 ? formatMoney(r.labor_memo_cost) : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-slate-400">
+                      {r.effective_hourly_rate ? formatMoney(r.effective_hourly_rate) : '—'}
                     </td>
                   </tr>
                 ))}

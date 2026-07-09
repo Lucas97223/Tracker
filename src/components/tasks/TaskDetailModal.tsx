@@ -9,6 +9,7 @@ import {
   type TaskWithAssignee,
 } from '../../hooks/useTasks';
 import { useTeamMembers } from '../../hooks/useTeam';
+import { useRunningTimer, useStartTimer, useStopTimer } from '../../hooks/useTime';
 import { useToast } from '../../providers/ToastProvider';
 import type { Task, TaskPriority, TaskSection, TaskStatus } from '../../types/database';
 
@@ -38,7 +39,11 @@ export function TaskDetailModal({
   const comments = useTaskComments(task.id);
   const addComment = useAddComment();
   const team = useTeamMembers();
+  const runningTimer = useRunningTimer();
+  const startTimer = useStartTimer();
+  const stopTimer = useStopTimer();
   const toast = useToast();
+  const timerOnThisTask = runningTimer.data?.task_id === task.id;
 
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
@@ -311,7 +316,33 @@ export function TaskDetailModal({
         </section>
 
         <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-          <span className={`badge ${PRIORITY_BADGES[task.priority]}`}>{task.priority}</span>
+          <div className="flex items-center gap-2">
+            <span className={`badge ${PRIORITY_BADGES[task.priority]}`}>{task.priority}</span>
+            {canEdit && (
+              <button
+                type="button"
+                className={timerOnThisTask ? 'btn-danger' : 'btn-ghost'}
+                disabled={startTimer.isPending || stopTimer.isPending}
+                onClick={() =>
+                  void (timerOnThisTask
+                    ? stopTimer.mutateAsync().then((e) =>
+                        toast.success(`Timer stopped — ${e?.minutes ?? 0}m logged`),
+                      )
+                    : startTimer
+                        .mutateAsync({
+                          project_id: task.project_id,
+                          task_id: task.id,
+                          notes: task.title,
+                          billable: true,
+                        })
+                        .then(() => toast.success('Timer started on this task'))
+                  ).catch((e) => toast.error(e instanceof Error ? e.message : 'Timer failed'))
+                }
+              >
+                {timerOnThisTask ? '■ Stop timer' : '▶ Start timer'}
+              </button>
+            )}
+          </div>
           {canEdit && (
             <button type="button" className="btn-danger" onClick={() => void handleDelete()}>
               Delete task

@@ -5,9 +5,36 @@
 ## Current state
 
 - **Phase:** 1 — Money in — **complete, awaiting user approval at the gate**
-- **Phase:** 2 — Tasks — **complete, at the gate.** Live database is at **0023** (Phase 2 schema deployed 2026-07-08 via `scripts/manage-deploy.py`, now migration-aware: it skips recorded versions and records each apply).
-- **GitHub: live.** `https://github.com/Lucas97223/Tracker` — device-flow OAuth stored in the macOS keychain; pushes work.
-- **Next phase:** 3 — Time (timer, timesheets, managerial labor memo (I4), unbilled→invoice with locks (I5)) → then the MVP gate.
+- **Phase:** 3 — Time — **complete. THE MVP GATE IS REACHED.** Live database at **0025**; GitHub current.
+- **MVP definition of done (spec §7):** a user can run a project from contact → invoice → payment → tasks → time and see a true P&L where labor appears exactly once, revenue is ledger-backed, and nothing was entered twice. All of it is deployed and covered by suites 01–08.
+- **Next:** user validates with real users (demo script below), then Phase 4 — CRM front (deals/pipeline, activity timeline, lead forms, dedupe, search) on approval.
+
+## Phase 3 gate summary (2026-07-09)
+
+**Schema (0024–0025, live):** `time_entries` (running timer = server-side row with NULL minutes — survives reload by construction; one open timer per person; `bill_rate` snapshotted at creation; `cost_rate` snapshotted into admin-only `time_entry_costs` so cost rates stay invisible to member/contractor roles); `start_timer`/`stop_timer` RPCs; **I5** `invoiced_lock` on time entries *and* billable expenses with RPC-only transitions, `add_unbilled_to_invoice()` (draft-only, source-linked lines, gross-method rebills per D7), unlock on draft-line delete and invoice void; **I4** memo columns on `v_project_pnl` (`labor_memo_cost`, `logged_minutes`, `effective_hourly_rate`) with zero journal writes anywhere in the time layer; `v_unbilled` picker view.
+
+**App:** header ▶ Timer widget (live clock, project picker, stop-from-anywhere); Timesheet page (person × day grid, week nav, manual log with member picker for editors); "Start timer" on task detail; "Add unbilled work" on draft invoices (checkbox picker with amounts, missing-rate guard); Reports P&L gains memo-labeled Hours / Labor cost / Eff. $/h columns; billable checkbox on the expense form (locked state shown); realtime for time entries.
+
+**Acceptance:**
+- [x] **I4 test verbatim** (suite 08): $500 approved pay + 10 logged hours → realized P&L shows $500 once; memo column carries hours × cost_rate separately; **zero** journal entries from time
+- [x] **I5 test verbatim** (suite 08): entries locked on invoice A; invoice B pull rejected; voiding A (or deleting a draft line) unlocks; B can then bill them
+- [x] Effective hourly rate = ledger revenue ÷ logged hours, on the P&L view + Reports
+- [x] Timer survives reload: open entry is a database row, not localStorage (suite 08 + design)
+- [x] Rate snapshots stable across later member_rates changes; cost snapshots admin-only; contractors log own time on staffed projects only
+- [x] 8/8 SQL suites; tsc/lint/vitest/build green; live REST smoke on every new embed/view (200s)
+
+**Notes:** memo cost renders as 0 for roles that can't read cost rates (I6-correct posture). Timesheet delete affects a day's first unlocked entry (finer editing via project pages later).
+
+## MVP demo script (for validating with real users)
+
+1. **Contact → project:** Contacts → "+ Contact" (a real client) → sidebar "+ Project" with a start date (year is derived) → pick the contact as Client.
+2. **Staff it:** edit project → Photographers tab → add a name → a **draft pay item** appears in Photographer Pay → set the fee → **Approve** (posts to the books: Team Pay / Accounts Payable).
+3. **Work it:** Tasks panel → add sections/tasks, assign people, switch to Board and drag to In progress → ▶ Timer in the header (or on a task) → stop after a bit → Timesheet shows the grid.
+4. **Bill it:** Invoices → "+ Invoice" → add a line or use **Add unbilled work** to pull the logged time + any billable expense (they lock) → Mark sent → copy the share link (client-facing, printable) → **Record payment**.
+5. **Read the truth:** Reports → project P&L: revenue equals what was paid, team pay appears once under COGS, hours + memo labor sit in their own gray columns, trial balance says **balanced**. Project page money strip agrees.
+6. **Try to break it:** edit client_paid (blocked), pull the same time onto a second invoice (blocked), edit a billed time entry (blocked), sign in as a viewer/contractor (financials disappear).
+
+## Previous gate summaries (2)
 
 ## Phase 2 gate summary (2026-07-08)
 

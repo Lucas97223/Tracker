@@ -478,6 +478,10 @@ export interface ProjectPnLRow {
   cogs: string;
   expense: string;
   net_margin: string;
+  /** I4 memo layer (Phase 3): never posted to the GL; admin-visible cost. */
+  labor_memo_cost: string;
+  logged_minutes: number;
+  effective_hourly_rate: string | null;
 }
 
 export interface Expense {
@@ -495,6 +499,9 @@ export interface Expense {
   receipt_url: string | null;
   notes: string | null;
   person_name: string | null; // attribution: who this expense was paid to / for
+  billable?: boolean; // Phase 3: rebillable to the client (gross method, D7)
+  invoiced_lock?: boolean; // Phase 3 (I5): on an invoice; immutable until released
+  invoice_line_id?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
