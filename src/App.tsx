@@ -27,6 +27,7 @@ import { PublicContractPage } from './pages/PublicContractPage';
 import { PublicBookingPage } from './pages/PublicBookingPage';
 import { PortalPage } from './pages/PortalPage';
 import { AutomationsPage } from './pages/AutomationsPage';
+import { CalendarPage } from './pages/CalendarPage';
 import { LoadingScreen } from './components/LoadingScreen';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -82,6 +83,7 @@ export default function App() {
         <Route path="projects/:projectId" element={<ProjectPage />} />
         <Route path="my-tasks" element={<MyTasksPage />} />
         <Route path="timesheet" element={<TimesheetPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
         <Route path="pipeline" element={<PipelinePage />} />
         <Route path="forms" element={<FormsPage />} />
         <Route path="catalog" element={<CatalogPage />} />

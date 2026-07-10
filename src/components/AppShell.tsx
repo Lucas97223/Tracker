@@ -90,6 +90,14 @@ export function AppShell() {
               Timesheet
             </NavLink>
             <NavLink
+              to="/calendar"
+              className={({ isActive }) =>
+                `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`
+              }
+            >
+              Calendar
+            </NavLink>
+            <NavLink
               to="/dashboard"
               className={({ isActive }) =>
                 `rounded px-2.5 py-1 text-sm ${isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100'}`

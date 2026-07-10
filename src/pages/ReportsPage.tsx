@@ -1,7 +1,162 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../lib/supabase';
 import { useProjectPnL, useTrialBalance } from '../hooks/useReports';
 import { useArAging } from '../hooks/useInvoices';
+import { useAuth } from '../providers/AuthProvider';
+import { useToast } from '../providers/ToastProvider';
 import { formatMoney } from '../lib/money';
+
+interface ForecastRow {
+  org_id: string;
+  direction: 'in' | 'out';
+  bucket: string;
+  source: string;
+  amount: string;
+}
+interface TaxSetAside {
+  org_id: string;
+  pct: string;
+  ytd_revenue: string;
+  suggested_set_aside: string;
+}
+
+const IN_BUCKETS = ['overdue', '0-30', '31-60', '61+'];
+
+function CashflowSection() {
+  const { isAdmin, orgId } = useAuth();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [pctDraft, setPctDraft] = useState<string | null>(null);
+
+  const forecast = useQuery({
+    queryKey: ['reports', 'cashflow'] as const,
+    queryFn: async () => {
+      const [flows, tax] = await Promise.all([
+        supabase.from('v_cashflow_forecast').select('*'),
+        supabase.from('v_tax_set_aside').select('*'),
+      ]);
+      if (flows.error) throw flows.error;
+      if (tax.error) throw tax.error;
+      return {
+        flows: (flows.data ?? []) as ForecastRow[],
+        tax: ((tax.data ?? []) as TaxSetAside[])[0] ?? null,
+      };
+    },
+  });
+
+  const savePct = useMutation({
+    mutationFn: async (pct: number) => {
+      const { data: org, error: gErr } = await supabase
+        .from('organizations').select('settings').eq('id', orgId!).single();
+      if (gErr) throw gErr;
+      const settings = { ...(org?.settings ?? {}), tax_set_aside_pct: String(pct) };
+      const { error } = await supabase.from('organizations').update({ settings }).eq('id', orgId!);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['reports', 'cashflow'] }),
+  });
+
+  const flows = forecast.data?.flows ?? [];
+  const tax = forecast.data?.tax ?? null;
+  const inBuckets = IN_BUCKETS.map((b) => ({
+    bucket: b,
+    total: flows.filter((f) => f.direction === 'in' && f.bucket === b)
+      .reduce((a, f) => a + Number(f.amount), 0),
+  }));
+  const totalIn = inBuckets.reduce((a, b) => a + b.total, 0);
+  const committedOut = flows.filter((f) => f.direction === 'out' && f.bucket === 'committed')
+    .reduce((a, f) => a + Number(f.amount), 0);
+  const forecastOut = flows.filter((f) => f.direction === 'out' && f.bucket === 'forecast')
+    .reduce((a, f) => a + Number(f.amount), 0);
+
+  return (
+    <section className="card">
+      <header className="border-b border-slate-100 px-4 py-2">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Cash-flow forecast
+          <span className="ml-2 normal-case text-slate-400">
+            expected, not actual — actuals live in the ledger above
+          </span>
+        </h2>
+      </header>
+      <div className="grid gap-4 p-4 md:grid-cols-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Expected in</p>
+          <ul className="mt-1 space-y-1 text-sm">
+            {inBuckets.map((b) => (
+              <li key={b.bucket} className="flex justify-between">
+                <span className={b.bucket === 'overdue' ? 'text-red-600' : 'text-slate-600'}>
+                  {b.bucket === 'overdue' ? 'Overdue' : `Due ${b.bucket} days`}
+                </span>
+                <span className="tabular-nums">{formatMoney(b.total)}</span>
+              </li>
+            ))}
+            <li className="flex justify-between border-t border-slate-100 pt-1 font-semibold text-slate-800">
+              <span>Total expected</span>
+              <span className="tabular-nums">{formatMoney(totalIn)}</span>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Expected out</p>
+          <ul className="mt-1 space-y-1 text-sm">
+            <li className="flex justify-between text-slate-600">
+              <span>Team pay committed (payable)</span>
+              <span className="tabular-nums">{formatMoney(committedOut)}</span>
+            </li>
+            <li className="flex justify-between text-slate-600">
+              <span>Draft pay (forecast)</span>
+              <span className="tabular-nums">{formatMoney(forecastOut)}</span>
+            </li>
+            <li className="flex justify-between border-t border-slate-100 pt-1 font-semibold text-slate-800">
+              <span>Net expected</span>
+              <span className="tabular-nums">{formatMoney(totalIn - committedOut - forecastOut)}</span>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tax set-aside (estimate)</p>
+          {tax && (
+            <ul className="mt-1 space-y-1 text-sm">
+              <li className="flex justify-between text-slate-600">
+                <span>YTD ledger revenue</span>
+                <span className="tabular-nums">{formatMoney(tax.ytd_revenue)}</span>
+              </li>
+              <li className="flex items-center justify-between text-slate-600">
+                <span>Set-aside rate</span>
+                {isAdmin ? (
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="number" min="0" max="60"
+                      className="input w-16 !py-0.5 text-right text-sm"
+                      value={pctDraft ?? Number(tax.pct)}
+                      onChange={(e) => setPctDraft(e.target.value)}
+                      onBlur={() => {
+                        if (pctDraft !== null && Number(pctDraft) !== Number(tax.pct)) {
+                          void savePct.mutateAsync(Number(pctDraft))
+                            .then(() => toast.success('Set-aside rate saved'))
+                            .catch((err) => toast.error(err instanceof Error ? err.message : 'Failed'));
+                        }
+                        setPctDraft(null);
+                      }}
+                    />%
+                  </span>
+                ) : (
+                  <span>{Number(tax.pct)}%</span>
+                )}
+              </li>
+              <li className="flex justify-between border-t border-slate-100 pt-1 font-semibold text-slate-800">
+                <span>Suggested to set aside</span>
+                <span className="tabular-nums">{formatMoney(tax.suggested_set_aside)}</span>
+              </li>
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 const BUCKET_BADGES: Record<string, string> = {
   current: 'bg-emerald-100 text-emerald-800',
@@ -144,6 +299,8 @@ export function ReportsPage() {
           </div>
         )}
       </section>
+
+      <CashflowSection />
 
       <section className="card">
         <header className="flex items-center justify-between border-b border-slate-100 px-4 py-2">
