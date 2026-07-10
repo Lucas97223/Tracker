@@ -28,6 +28,7 @@ import { PublicBookingPage } from './pages/PublicBookingPage';
 import { PortalPage } from './pages/PortalPage';
 import { AutomationsPage } from './pages/AutomationsPage';
 import { CalendarPage } from './pages/CalendarPage';
+import { ReconciliationPage } from './pages/ReconciliationPage';
 import { LoadingScreen } from './components/LoadingScreen';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -108,6 +109,7 @@ export default function App() {
         />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="reconciliation" element={<ReconciliationPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route
           path="admin"

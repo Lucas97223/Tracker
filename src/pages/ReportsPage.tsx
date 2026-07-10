@@ -6,6 +6,8 @@ import { useArAging } from '../hooks/useInvoices';
 import { useAuth } from '../providers/AuthProvider';
 import { useToast } from '../providers/ToastProvider';
 import { formatMoney } from '../lib/money';
+import { Link } from 'react-router-dom';
+import { exportToCsv } from '../lib/csv';
 
 interface ForecastRow {
   org_id: string;
@@ -194,7 +196,36 @@ export function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Reports</h1>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">Reports</h1>
+        <div className="flex items-center gap-2">
+          <Link to="/reconciliation" className="btn-ghost">🏦 Bank reconciliation</Link>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() =>
+              void supabase
+                .from('v_gl_export')
+                .select('*')
+                .order('entry_date')
+                .limit(10000)
+                .then(({ data, error }) => {
+                  if (error || !data?.length) return;
+                  exportToCsv(
+                    'general-ledger.csv',
+                    data.map((r) => ({
+                      date: r.entry_date, account: r.account_code, name: r.account_name,
+                      debit: r.debit, credit: r.credit, memo: r.memo, project: r.project,
+                      source: r.source_type, reference: r.reference,
+                    })),
+                  );
+                })
+            }
+          >
+            ⬇ Export GL (CSV)
+          </button>
+        </div>
+      </header>
 
       <section className="card">
         <header className="border-b border-slate-100 px-4 py-2">
