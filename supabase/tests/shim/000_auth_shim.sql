@@ -20,6 +20,7 @@ $$;
 -- API roles as they exist on the platform.
 do $$ begin create role anon nologin;          exception when duplicate_object then null; end $$;
 do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$;
+do $$ begin create role service_role nologin;  exception when duplicate_object then null; end $$;
 
 grant usage on schema public to anon, authenticated;
 grant usage on schema auth to anon, authenticated;
