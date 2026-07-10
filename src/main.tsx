@@ -34,3 +34,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+
+// PWA: register the app-shell service worker — production web builds only
+// (never the dev server, never Electron's file:// context).
+if (import.meta.env.PROD && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      /* offline shell is a nicety — never block the app on it */
+    });
+  });
+}

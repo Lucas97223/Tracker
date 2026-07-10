@@ -1,0 +1,17 @@
+{
+  "name": "Expense Tracker — Studio OS",
+  "short_name": "Studio OS",
+  "description": "Clients, projects, tasks, time and money — one ledger-backed app.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#1d3a9a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

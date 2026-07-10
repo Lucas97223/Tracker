@@ -5,7 +5,25 @@
 ## Current state
 
 - **Phase:** 1 — Money in — **complete, awaiting user approval at the gate**
-- **Phase:** 5 — Sell & onboard — **core + portal complete, at the gate.** Live database at **0036**; GitHub current. Credential-gated integrations deliberately seamed for later (user gathering credentials).
+- **Phase: ALL SIX PHASES COMPLETE (2026-07-10).** Live database at **0040**; GitHub current; 15/15 SQL suites; ledger balanced with $1.58M of imported history.
+
+## Phase 6 gate summary (2026-07-10)
+
+**6a Automations (0038):** 5 triggers × 3 actions, per-contact daily cap, loop-proof (depth flag), failure-isolated fan-out (branch-on-table fix caught by suite 14), runs log, recipe gallery UI.
+**6b Calendar + forecast (0039):** month calendar (projects/tasks/bookings, role-safe); `v_cashflow_forecast` (IN by due-bucket from invoices+schedules; OUT split committed payable vs draft forecast — documents only, I2); `v_tax_set_aside` (configurable % of YTD ledger revenue, inline rate editor).
+**6c Reconciliation + export (0040):** bank_transactions staging (import dedupe), exact-match ±5-day suggestions on cash/clearing lines, reconcile/unreconcile RPCs (one bank row per line), CSV upload with header detection, QuickBooks-style GL CSV export.
+**6d PWA:** manifest + SVG icon + hand-rolled app-shell service worker (prod web only, never Electron/dev; API never cached) — verified registered in-browser.
+
+**Deferred from the Phase 6 menu (candidates for a v2 cycle):** task dependencies/workload/portfolios/status updates; ledger-grounded AI features (needs an Anthropic API key decision); Asana/CSV importers; capacity-aware booking; money-carrying templates (budget+schedule in one apply).
+
+**Standing operational notes:**
+- **E-SIGN REMINDER (as requested):** pick a provider when ready — recommendation Documenso; the `signature_events.provider/payload` slot is wired (D6).
+- Stripe: LIVE key — first real payment (or a self-test + refund) is the final end-to-end verification; consider rotating the key since it transited chat; `APP_ORIGIN` secret currently `http://localhost:5174` → update when the web app gets real hosting.
+- Resend: verify a domain to lift the send-to-self restriction on reminders/magic links.
+- Portal: pen-test before broad client rollout (spec requirement).
+
+## Previous state (Phase 5)
+- Phase 5 — Sell & onboard — complete (0031–0037 + portal 0036 + Stripe/Resend/Dubsado). Credential integrations live.
 - **Client portal shipped (0036):** magic-link sign-in at `#/portal` (Supabase built-in mailer, no key). Portal logins are inactive, org-less, roster-less profiles linked to contacts by verified email (`contact_users`); they read exclusively through contact-scoped definer views (`v_portal_invoices/projects/proposals/contracts`) — base tables and staff views provably closed (suite 12). Nested-view lesson recorded: definer portal views must compute from base tables, not from invoker views (whose RLS re-applies as the portal user). **Pen-test before GA** per spec.
 - **Next:** on gate approval → remaining Phase 5 integrations as credentials arrive (Stripe Connect → `processor_events` + hosted checkout on invoices; e-sign provider into `signature_events`; Resend for reminders; client portal via Supabase magic links needs no key; Dubsado importer needs an export file) → then Phase 6.
 
