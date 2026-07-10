@@ -16,6 +16,7 @@ const SALES_LINKS = [
   { to: '/contracts', label: 'Contracts' },
   { to: '/scheduler', label: 'Scheduler' },
   { to: '/forms', label: 'Lead forms' },
+  { to: '/automations', label: 'Automations' },
 ];
 
 function SalesMenu() {

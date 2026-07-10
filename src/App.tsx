@@ -26,6 +26,7 @@ import { PublicProposalPage } from './pages/PublicProposalPage';
 import { PublicContractPage } from './pages/PublicContractPage';
 import { PublicBookingPage } from './pages/PublicBookingPage';
 import { PortalPage } from './pages/PortalPage';
+import { AutomationsPage } from './pages/AutomationsPage';
 import { LoadingScreen } from './components/LoadingScreen';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -87,6 +88,14 @@ export default function App() {
         <Route path="proposals" element={<ProposalsPage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="scheduler" element={<SchedulerPage />} />
+        <Route
+          path="automations"
+          element={
+            <RequireAdmin>
+              <AutomationsPage />
+            </RequireAdmin>
+          }
+        />
         <Route
           path="team"
           element={
