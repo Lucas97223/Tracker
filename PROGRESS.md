@@ -5,7 +5,8 @@
 ## Current state
 
 - **Phase:** 1 — Money in — **complete, awaiting user approval at the gate**
-- **Phase: ALL SIX PHASES COMPLETE (2026-07-10).** Live database at **0040**; GitHub current; 15/15 SQL suites; ledger balanced with $1.58M of imported history.
+- **Phase: ALL SIX PHASES COMPLETE (2026-07-10).** Live database at **0041**; GitHub current; 15/15 SQL suites; ledger balanced with $1.58M of imported history.
+- **Portal/public pen-test PASSED (2026-07-12).** One finding, fixed (0041 booking rate cap). See below.
 
 ## Phase 6 gate summary (2026-07-10)
 
@@ -14,13 +15,29 @@
 **6c Reconciliation + export (0040):** bank_transactions staging (import dedupe), exact-match ±5-day suggestions on cash/clearing lines, reconcile/unreconcile RPCs (one bank row per line), CSV upload with header detection, QuickBooks-style GL CSV export.
 **6d PWA:** manifest + SVG icon + hand-rolled app-shell service worker (prod web only, never Electron/dev; API never cached) — verified registered in-browser.
 
+## Portal / public pen-test (2026-07-12) — PASSED
+
+Audited every surface an unauthenticated (`anon`) or external portal user can reach, before the app is publicly hosted (spec gate).
+
+**Verified clean:**
+- **No IDOR.** Every public entity (invoice/proposal/contract/form/scheduler) is keyed by its own high-entropy `share_token uuid default gen_random_uuid()`, never the row PK. Read RPCs (`get_public_*`) hand-pick safe fields (no costs/rates/margins/internal notes) and gate on shareable statuses only.
+- **No direct table access for `anon`.** `anon` holds *zero* table privileges — only EXECUTE on 10 vetted RPCs. The `/rest/v1/<table>` IDOR class is impossible for anon regardless of RLS.
+- **No cross-org injection in public writes.** `submit_lead_form` / `accept_proposal` / `sign_contract` / `book_slot` all derive `org_id` from the token; none accept a caller-supplied org. All take `FOR UPDATE` locks, gate on status/expiry, capture IP/UA as evidence, and return only `{ok:true}`.
+- **`record_stripe_payment` is `service_role`-only** (revoked from public/anon/authenticated) — a payment cannot be forged from the browser.
+- **Portal isolation holds three-deep:** portal profiles are created `is_active=false`, so `is_active_user()` → false → every org helper (`is_org_member`/`org_can_view_financials`/`org_can_edit`/`org_is_admin`/`can_access_work`) short-circuits false → all base tables return zero rows even via direct REST. Portal reads flow *only* through definer views filtered by `contact_users cu … cu.user_id = auth.uid()`, and `contact_users` links a login to contacts only by **verified** email. The `profiles` self-update policy pins `is_active`, so a portal user cannot self-activate. (suite 12)
+- **Cross-tenant isolation intact:** 0012 rescoped every legacy table (projects/expenses/categories/years) from bare `is_active_user()` to `org_can_view_financials`/`org_can_edit`; suite 01 asserts zero cross-org reads *and* writes. RLS enabled + policied on all 55 tables (~130 policies).
+
+**Finding (fixed — 0041):** `book_slot` was the only public *write* with no abuse cap, yet its scheduler token is semi-public by design (posted on a site). An attacker with the link could fill every open slot with junk bookings (denial-of-booking) and spawn fake lead contacts. `submit_lead_form` already guards this via `forms.daily_cap`; 0041 mirrors that exactly onto `appointment_types.daily_cap` (default 20/24h) and enforces it in `book_slot`. Verified by suite 11 (a fresh visitor on a still-open slot is refused once the cap is hit — no booking, no junk lead). Deployed to production, `daily_cap` column confirmed live.
+
+**Recommendation for hosting time (not a blocker):** the real fix for a public booking/lead page is a CAPTCHA/Turnstile challenge verified before the RPC runs — the DB cap is defense-in-depth. Add it when the public pages get a real domain.
+
 **Deferred from the Phase 6 menu (candidates for a v2 cycle):** task dependencies/workload/portfolios/status updates; ledger-grounded AI features (needs an Anthropic API key decision); Asana/CSV importers; capacity-aware booking; money-carrying templates (budget+schedule in one apply).
 
 **Standing operational notes:**
 - **E-SIGN REMINDER (as requested):** pick a provider when ready — recommendation Documenso; the `signature_events.provider/payload` slot is wired (D6).
 - Stripe: LIVE key — first real payment (or a self-test + refund) is the final end-to-end verification; consider rotating the key since it transited chat; `APP_ORIGIN` secret currently `http://localhost:5174` → update when the web app gets real hosting.
 - Resend: verify a domain to lift the send-to-self restriction on reminders/magic links.
-- Portal: pen-test before broad client rollout (spec requirement).
+- Portal: **pen-test passed 2026-07-12** (see section below) — clear for client rollout; add a CAPTCHA on public booking/lead pages when hosted.
 
 ## Previous state (Phase 5)
 - Phase 5 — Sell & onboard — complete (0031–0037 + portal 0036 + Stripe/Resend/Dubsado). Credential integrations live.

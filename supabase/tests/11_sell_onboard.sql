@@ -188,5 +188,35 @@ select tests.assert(
   (select lifecycle = 'lead' from contacts where email = 'wanda@x.io'),
   'booking created a lead contact');
 
+-- ---------- booking daily-cap (0041 pen-test hardening) ----------
+-- Squeeze the cap to one intake/24h; Wanda already used it, so a fresh visitor
+-- picking a still-open slot must be turned away by the cap, not by availability.
+update appointment_types set daily_cap = 1;
+reset role;
+
+set role anon;
+select set_config('tests.slot2', (
+  select (get_public_scheduler(current_setting('tests.stoken')::uuid, current_date, 14)
+          -> 'slots' -> 0 ->> 'starts_at')), false);
+do $$
+begin
+  perform public.book_slot(current_setting('tests.stoken')::uuid,
+                           current_setting('tests.slot2')::timestamptz,
+                           'Capped Cara', 'cara@x.io');
+  raise exception 'GUARD FAILED: booking past daily_cap accepted';
+exception when others then
+  if sqlerrm like '%GUARD FAILED%' then raise; end if;
+  if sqlerrm not like '%temporarily closed%' then
+    raise exception 'daily_cap rejected for the wrong reason: %', sqlerrm;
+  end if;
+end $$;
+reset role;
+
+select tests.become(:'owner_u');
+set role authenticated;
+select tests.assert(
+  (select count(*) = 1 from bookings) and not exists (select 1 from contacts where email = 'cara@x.io'),
+  'daily_cap blocks a second intake within 24h — no booking, no junk lead');
+
 reset role;
 select '11_sell_onboard: PASS';
